@@ -1,0 +1,161 @@
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
+from app.database.database import get_db
+from app.dependencies.auth import get_current_user, require_examiner_only, require_role
+from app.models.user import User, UserRole
+from app.models.question import QuestionBank, Option, QuestionType
+from app.schemas.question import QuestionCreate, QuestionUpdate, QuestionResponse
+
+router = APIRouter(prefix="/questions", tags=["Question Bank"])
+
+@router.post("", response_model=QuestionResponse, status_code=status.HTTP_213_CREATED if hasattr(status, 'HTTP_213_CREATED') else status.HTTP_201_CREATED)
+def create_question(
+    data: QuestionCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Create a new question in the Question Bank (Examiner & Admin only).
+    """
+    new_question = QuestionBank(
+        question_text=data.question_text,
+        question_type=data.question_type,
+        subject=data.subject,
+        difficulty=data.difficulty,
+        model_answer=data.model_answer,
+        marks=data.marks,
+        negative_marks=data.negative_marks,
+        created_by=current_user.id
+    )
+    db.add(new_question)
+    db.flush()
+
+    if data.options:
+        for opt in data.options:
+            new_option = Option(
+                question_id=new_question.id,
+                option_text=opt.option_text,
+                is_correct=opt.is_correct
+            )
+            db.add(new_option)
+
+    db.commit()
+    db.refresh(new_question)
+    return new_question
+
+@router.get("", response_model=List[QuestionResponse])
+def list_questions(
+    subject: Optional[str] = None,
+    difficulty: Optional[str] = None,
+    question_type: Optional[QuestionType] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    List questions in the Question Bank with optional subject, difficulty, or question_type filters.
+    """
+    query = db.query(QuestionBank)
+    if subject:
+        query = query.filter(QuestionBank.subject.ilike(f"%{subject}%"))
+    if difficulty:
+        query = query.filter(QuestionBank.difficulty == difficulty.upper())
+    if question_type:
+        query = query.filter(QuestionBank.question_type == question_type)
+
+    return query.order_by(QuestionBank.created_at.desc()).all()
+
+@router.get("/{question_id}", response_model=QuestionResponse)
+def get_question(
+    question_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get a single question by ID.
+    """
+    question = db.query(QuestionBank).filter(QuestionBank.id == question_id).first()
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Question with ID {question_id} not found."
+        )
+    return question
+
+@router.put("/{question_id}", response_model=QuestionResponse)
+def update_question(
+    question_id: int,
+    data: QuestionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Update a question in the Question Bank (Examiner & Admin only).
+    """
+    question = db.query(QuestionBank).filter(QuestionBank.id == question_id).first()
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Question with ID {question_id} not found."
+        )
+
+    if current_user.role == UserRole.EXAMINER and question.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only update questions that you created."
+        )
+
+    if data.question_text is not None:
+        question.question_text = data.question_text
+    if data.question_type is not None:
+        question.question_type = data.question_type
+    if data.subject is not None:
+        question.subject = data.subject
+    if data.difficulty is not None:
+        question.difficulty = data.difficulty
+    if data.model_answer is not None:
+        question.model_answer = data.model_answer
+    if data.marks is not None:
+        question.marks = data.marks
+    if data.negative_marks is not None:
+        question.negative_marks = data.negative_marks
+
+    if data.options is not None:
+        db.query(Option).filter(Option.question_id == question_id).delete()
+        for opt in data.options:
+            new_option = Option(
+                question_id=question.id,
+                option_text=opt.option_text,
+                is_correct=opt.is_correct
+            )
+            db.add(new_option)
+
+    db.commit()
+    db.refresh(question)
+    return question
+
+@router.delete("/{question_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_question(
+    question_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Delete a question from the Question Bank (Examiner & Admin only).
+    """
+    question = db.query(QuestionBank).filter(QuestionBank.id == question_id).first()
+    if not question:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Question with ID {question_id} not found."
+        )
+
+    if current_user.role == UserRole.EXAMINER and question.created_by != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only delete questions that you created."
+        )
+
+    db.delete(question)
+    db.commit()
+    return None
