@@ -25,7 +25,8 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
         name=user_in.name,
         email=user_in.email,
         password_hash=hash_password(user_in.password),
-        role=user_in.role
+        role=user_in.role,
+        is_approved=True  # Pre-approved for instant demo testing
     )
     db.add(new_user)
     db.commit()
@@ -39,7 +40,7 @@ async def login(
     request: Request,
     db: Session = Depends(get_db)
 ):
-    """Authenticate user and return JWT access token. Supports Form data and JSON payloads."""
+    """Authenticate user and return JWT access token. Checks Admin approval status."""
     email = None
     password = None
 
@@ -72,9 +73,14 @@ async def login(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Your account is pending approval by System Admin. Please contact your administrator.",
+        )
+
     access_token = create_access_token(
         data={"sub": str(user.id), "role": user.role.value}
     )
 
     return Token(access_token=access_token, token_type="bearer")
-

@@ -43,6 +43,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}, tokenOver
     let message = data.detail || "Something went wrong. Please try again.";
     if (response.status === 401) {
       message = "Invalid email or password.";
+    } else if (response.status === 403) {
+      message = data.detail || "Access forbidden. Your account may be pending approval.";
     } else if (response.status === 409) {
       message = "An account with this email already exists.";
     } else if (response.status >= 500) {
@@ -72,6 +74,19 @@ export async function getCurrentUser(tokenOverride?: string): Promise<User> {
   return request<User>("/users/me", {
     method: "GET",
   }, tokenOverride);
+}
+
+// User Management (Admin Only)
+export async function listUsers(): Promise<User[]> {
+  return request<User[]>("/users", {
+    method: "GET",
+  });
+}
+
+export async function approveUser(userId: number, isApproved: boolean = true): Promise<User> {
+  return request<User>(`/users/${userId}/approve?is_approved=${isApproved}`, {
+    method: "PUT",
+  });
 }
 
 // Question Bank API

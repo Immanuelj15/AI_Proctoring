@@ -5,6 +5,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  is_approved?: boolean;
   phone_number?: string;
   createdAt?: string;
 }

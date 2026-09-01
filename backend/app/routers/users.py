@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Depends
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+from app.database.database import get_db
 from app.schemas.user import UserResponse
 from app.models.user import User
 from app.dependencies.auth import (
@@ -15,6 +18,36 @@ router = APIRouter(prefix="/users", tags=["Users"])
 def read_current_user(current_user: User = Depends(get_current_user)):
     """Retrieve details of the currently authenticated user."""
     return current_user
+
+
+@router.get("", response_model=List[UserResponse])
+def list_all_users(
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_only)
+):
+    """Retrieve list of all registered users (Admin only)."""
+    return db.query(User).order_by(User.id.desc()).all()
+
+
+@router.put("/{user_id}/approve", response_model=UserResponse)
+def update_user_approval(
+    user_id: int,
+    is_approved: bool = True,
+    db: Session = Depends(get_db),
+    admin_user: User = Depends(require_admin_only)
+):
+    """Approve or revoke user access (Admin only)."""
+    target_user = db.query(User).filter(User.id == user_id).first()
+    if not target_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+    
+    target_user.is_approved = is_approved
+    db.commit()
+    db.refresh(target_user)
+    return target_user
 
 
 @router.get("/student-test")

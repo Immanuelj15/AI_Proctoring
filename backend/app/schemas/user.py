@@ -15,6 +15,7 @@ class UserResponse(BaseModel):
     name: str
     email: EmailStr
     role: UserRole
+    is_approved: bool = True
     created_at: datetime
     updated_at: datetime
 
@@ -23,4 +24,3 @@ class UserResponse(BaseModel):
 
 class UserInDB(UserResponse):
     password_hash: str
-

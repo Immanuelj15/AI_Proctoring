@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 from typing import List, TYPE_CHECKING
-from sqlalchemy import String, Enum, DateTime, func
+from sqlalchemy import String, Enum, DateTime, Boolean, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database.base import Base
 
@@ -28,6 +28,11 @@ class User(Base):
         Enum(UserRole, name="user_role", native_enum=False),
         nullable=False,
         default=UserRole.STUDENT
+    )
+    is_approved: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        nullable=False
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),

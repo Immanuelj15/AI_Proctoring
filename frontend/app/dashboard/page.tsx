@@ -7,17 +7,19 @@ import QuestionBankManager from "@/components/examiner/QuestionBankManager";
 import ExamManager from "@/components/examiner/ExamManager";
 import ExamInstructionsModal from "@/components/exam/ExamInstructionsModal";
 import { removeToken } from "@/lib/auth";
-import { listQuestions, listExams, startExamSession } from "@/lib/api";
+import { listQuestions, listExams, startExamSession, listUsers, approveUser } from "@/lib/api";
 import { User, UserRole } from "@/lib/types";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"questions" | "exams">("questions");
+  const [activeTab, setActiveTab] = useState<"questions" | "exams" | "approvals">("questions");
   const [questionCount, setQuestionCount] = useState<number>(0);
   const [examCount, setExamCount] = useState<number>(0);
   const [examsList, setExamsList] = useState<any[]>([]);
+  const [usersList, setUsersList] = useState<User[]>([]);
   const [selectedExamForModal, setSelectedExamForModal] = useState<any | null>(null);
   const [startingSession, setStartingSession] = useState<boolean>(false);
+  const [loadingUsers, setLoadingUsers] = useState<boolean>(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -27,7 +29,6 @@ export default function DashboardPage() {
         setExamCount(eData.length);
         setExamsList(eData);
       } catch (err) {
-        // Fallback default list
         setExamsList([
           { id: 1, title: "Computer Science Midterm", duration_minutes: 30, subject: "Computer Science", question_count: 10 },
           { id: 2, title: "Operating Systems & Networking", duration_minutes: 45, subject: "Computer Science", question_count: 15 },
@@ -36,6 +37,31 @@ export default function DashboardPage() {
     }
     fetchStats();
   }, []);
+
+  const loadAllUsers = async () => {
+    setLoadingUsers(true);
+    try {
+      const data = await listUsers();
+      setUsersList(data);
+    } catch (err) {
+      setUsersList([
+        { id: 1, name: "John Student", email: "student@example.com", role: "student", is_approved: true },
+        { id: 2, name: "Jane Examiner", email: "examiner@example.com", role: "examiner", is_approved: true },
+        { id: 3, name: "Pending Candidate", email: "pending@example.com", role: "student", is_approved: false },
+      ]);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleToggleApproval = async (userId: number, currentStatus: boolean) => {
+    try {
+      await approveUser(userId, !currentStatus);
+      loadAllUsers();
+    } catch (err: any) {
+      alert(err.message || "Failed to update user approval status.");
+    }
+  };
 
   const handleLogout = () => {
     removeToken();
@@ -51,11 +77,9 @@ export default function DashboardPage() {
         document.documentElement.requestFullscreen().catch(() => {});
       }
 
-      // Start dynamic session in FastAPI backend
       const sessionData = await startExamSession(selectedExamForModal.id);
       const targetSessionId = sessionData.session_id || `session-${selectedExamForModal.id}`;
 
-      // Save active session data to localStorage for the exam room
       if (sessionData.questions) {
         localStorage.setItem(`session_questions_${targetSessionId}`, JSON.stringify(sessionData.questions));
       }
@@ -63,7 +87,6 @@ export default function DashboardPage() {
       setSelectedExamForModal(null);
       router.push(`/exam/${targetSessionId}`);
     } catch (err: any) {
-      // Fallback redirect if backend is offline or fallback exam ID
       if (document.documentElement.requestFullscreen) {
         document.documentElement.requestFullscreen().catch(() => {});
       }
@@ -92,6 +115,7 @@ export default function DashboardPage() {
     <ProtectedRoute>
       {(user: User) => {
         const isExaminerOrAdmin = user.role === "examiner" || user.role === "admin";
+        const isAdmin = user.role === "admin";
         const candidateUser = {
           ...user,
           phone_number: user.phone_number || "+1 (555) 019-2831"
@@ -176,7 +200,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            {/* Segment Control Pill Bar for Examiners */}
+            {/* Segment Control Pill Bar for Examiners & Admins */}
             {isExaminerOrAdmin && (
               <div className="segment-bar">
                 <button
@@ -191,6 +215,17 @@ export default function DashboardPage() {
                 >
                   📝 Exam Configurator
                 </button>
+                {isAdmin && (
+                  <button
+                    className={`segment-item ${activeTab === "approvals" ? "active" : ""}`}
+                    onClick={() => {
+                      setActiveTab("approvals");
+                      loadAllUsers();
+                    }}
+                  >
+                    👥 User Approval Management
+                  </button>
+                )}
               </div>
             )}
 
@@ -199,6 +234,72 @@ export default function DashboardPage() {
               <>
                 {activeTab === "questions" && <QuestionBankManager />}
                 {activeTab === "exams" && <ExamManager />}
+                {activeTab === "approvals" && isAdmin && (
+                  <div className="panel-card">
+                    <div className="panel-header">
+                      <h3 className="panel-title">👥 User Approval & Access Control</h3>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        style={{ padding: "0.45rem 1rem", fontSize: "0.82rem", width: "auto" }}
+                        onClick={loadAllUsers}
+                      >
+                        🔄 Refresh User List
+                      </button>
+                    </div>
+
+                    <p style={{ color: "#475569", marginBottom: "1.25rem", fontSize: "0.88rem" }}>
+                      As an Administrator, you can approve or revoke login access for registered Students and Examiners.
+                    </p>
+
+                    {loadingUsers ? (
+                      <p>Loading users...</p>
+                    ) : (
+                      <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
+                        {usersList.map((u) => (
+                          <div
+                            key={u.id}
+                            style={{
+                              padding: "1rem 1.25rem",
+                              background: u.is_approved ? "#ffffff" : "#fffbeb",
+                              border: `1.5px solid ${u.is_approved ? "#e2e8f0" : "#fde68a"}`,
+                              borderRadius: "12px",
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center"
+                            }}
+                          >
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                                <span className={getBadgeClass(u.role)}>{u.role}</span>
+                                <span className={`badge ${u.is_approved ? "badge-examiner" : "badge-admin"}`}>
+                                  {u.is_approved ? "🟢 APPROVED" : "🟡 PENDING APPROVAL"}
+                                </span>
+                              </div>
+                              <h4 style={{ fontSize: "1rem", fontWeight: 800, color: "#0f172a", marginTop: "0.3rem" }}>{u.name}</h4>
+                              <p style={{ fontSize: "0.82rem", color: "#64748b" }}>{u.email}</p>
+                            </div>
+
+                            <div>
+                              {u.role === "admin" ? (
+                                <span className="badge badge-admin">Super Admin</span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className={`btn ${u.is_approved ? "btn-danger" : "btn-primary"}`}
+                                  style={{ padding: "0.55rem 1.1rem", fontSize: "0.82rem", width: "auto" }}
+                                  onClick={() => handleToggleApproval(Number(u.id), !!u.is_approved)}
+                                >
+                                  {u.is_approved ? "⛔ Revoke Access" : "✅ Approve User Access"}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </>
             ) : (
               /* Candidate Scheduled Exams View */
