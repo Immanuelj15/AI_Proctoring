@@ -7,7 +7,7 @@ import QuestionBankManager from "@/components/examiner/QuestionBankManager";
 import ExamManager from "@/components/examiner/ExamManager";
 import ExamInstructionsModal from "@/components/exam/ExamInstructionsModal";
 import { removeToken } from "@/lib/auth";
-import { listQuestions, listExams } from "@/lib/api";
+import { listQuestions, listExams, startExamSession } from "@/lib/api";
 import { User, UserRole } from "@/lib/types";
 
 export default function DashboardPage() {
@@ -15,7 +15,9 @@ export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<"questions" | "exams">("questions");
   const [questionCount, setQuestionCount] = useState<number>(0);
   const [examCount, setExamCount] = useState<number>(0);
+  const [examsList, setExamsList] = useState<any[]>([]);
   const [selectedExamForModal, setSelectedExamForModal] = useState<any | null>(null);
+  const [startingSession, setStartingSession] = useState<boolean>(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -23,8 +25,13 @@ export default function DashboardPage() {
         const [qData, eData] = await Promise.all([listQuestions(), listExams()]);
         setQuestionCount(qData.length);
         setExamCount(eData.length);
+        setExamsList(eData);
       } catch (err) {
-        // Fallback stats
+        // Fallback default list
+        setExamsList([
+          { id: 1, title: "Computer Science Midterm", duration_minutes: 30, subject: "Computer Science", question_count: 10 },
+          { id: 2, title: "Operating Systems & Networking", duration_minutes: 45, subject: "Computer Science", question_count: 15 },
+        ]);
       }
     }
     fetchStats();
@@ -35,12 +42,37 @@ export default function DashboardPage() {
     router.push("/login");
   };
 
-  const handleLaunchFullscreenExam = () => {
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen().catch(() => {});
+  const handleLaunchFullscreenExam = async () => {
+    if (!selectedExamForModal) return;
+    setStartingSession(true);
+
+    try {
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+
+      // Start dynamic session in FastAPI backend
+      const sessionData = await startExamSession(selectedExamForModal.id);
+      const targetSessionId = sessionData.session_id || `session-${selectedExamForModal.id}`;
+
+      // Save active session data to localStorage for the exam room
+      if (sessionData.questions) {
+        localStorage.setItem(`session_questions_${targetSessionId}`, JSON.stringify(sessionData.questions));
+      }
+
+      setSelectedExamForModal(null);
+      router.push(`/exam/${targetSessionId}`);
+    } catch (err: any) {
+      // Fallback redirect if backend is offline or fallback exam ID
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+      const fallbackId = selectedExamForModal.id ? `exam-${selectedExamForModal.id}` : "sim-session-1";
+      setSelectedExamForModal(null);
+      router.push(`/exam/${fallbackId}`);
+    } finally {
+      setStartingSession(false);
     }
-    setSelectedExamForModal(null);
-    router.push("/exam/sim-session-1");
   };
 
   const getBadgeClass = (role: UserRole) => {
@@ -71,7 +103,7 @@ export default function DashboardPage() {
             {selectedExamForModal && (
               <ExamInstructionsModal
                 examTitle={selectedExamForModal.title}
-                durationMinutes={selectedExamForModal.duration}
+                durationMinutes={selectedExamForModal.duration_minutes || selectedExamForModal.duration || 30}
                 candidate={candidateUser}
                 onAgreeAndStart={handleLaunchFullscreenExam}
                 onCancel={() => setSelectedExamForModal(null)}
@@ -176,45 +208,49 @@ export default function DashboardPage() {
                   <span className="badge badge-student">AI Proctor Monitored</span>
                 </div>
                 <p style={{ color: "#475569", marginBottom: "1.25rem", fontSize: "0.88rem" }}>
-                  Select a scheduled examination paper below to review instructions and start your proctored exam session.
+                  Below are the examination papers configured by Examiners. Select a scheduled paper to start your proctored exam session.
                 </p>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
-                  {[
-                    { title: "Computer Science Midterm", duration: 30, subject: "Computer Science", questions: 10 },
-                    { title: "Operating Systems & Networking", duration: 45, subject: "Computer Science", questions: 15 },
-                  ].map((ex, idx) => (
-                    <div key={idx} style={{
-                      padding: "1.25rem",
-                      background: "#ffffff",
-                      border: "1.5px solid #e2e8f0",
-                      borderRadius: "14px",
-                      display: "flex",
-                      flexDirection: "column",
-                      justifyContent: "space-between",
-                      gap: "1rem"
-                    }}>
-                      <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
-                          <span className="badge badge-examiner">{ex.subject}</span>
-                          <span className="badge badge-student">⏱ {ex.duration} Mins</span>
+                {examsList.length === 0 ? (
+                  <div style={{ padding: "2rem", textAlign: "center", background: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1" }}>
+                    <p style={{ color: "#64748b", fontSize: "0.9rem" }}>No exams configured yet by Examiners.</p>
+                  </div>
+                ) : (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                    {examsList.map((ex) => (
+                      <div key={ex.id} style={{
+                        padding: "1.25rem",
+                        background: "#ffffff",
+                        border: "1.5px solid #e2e8f0",
+                        borderRadius: "14px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        gap: "1rem"
+                      }}>
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                            <span className="badge badge-examiner">{ex.subject || "General"}</span>
+                            <span className="badge badge-student">⏱ {ex.duration_minutes || ex.duration || 30} Mins</span>
+                          </div>
+                          <h4 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a" }}>{ex.title}</h4>
+                          <p style={{ fontSize: "0.82rem", color: "#64748b", marginTop: "0.3rem" }}>
+                            Total Questions: <strong>{ex.question_count || ex.questions || 5}</strong> | Fullscreen Lock & MediaPipe Enabled
+                          </p>
                         </div>
-                        <h4 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a" }}>{ex.title}</h4>
-                        <p style={{ fontSize: "0.82rem", color: "#64748b", marginTop: "0.3rem" }}>
-                          Total Questions: <strong>{ex.questions}</strong> | Fullscreen Lock & MediaPipe Enabled
-                        </p>
-                      </div>
 
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => setSelectedExamForModal(ex)}
-                      >
-                        Start Proctored Exam →
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={startingSession}
+                          onClick={() => setSelectedExamForModal(ex)}
+                        >
+                          {startingSession ? "Starting Session..." : "Start Proctored Exam →"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

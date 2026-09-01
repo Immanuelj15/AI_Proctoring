@@ -115,3 +115,17 @@ export async function addQuestionToExam(examId: number, questionId: number, orde
     body: JSON.stringify({ question_id: questionId, question_order: orderIndex }),
   });
 }
+
+// Timed Session API
+export async function startExamSession(examId: number): Promise<any> {
+  return request<any>("/exam-sessions/start", {
+    method: "POST",
+    body: JSON.stringify({ exam_id: examId }),
+  });
+}
+
+export async function getExamSessionRemainingTime(sessionId: string): Promise<any> {
+  return request<any>(`/exam-sessions/${sessionId}/time-remaining`, {
+    method: "GET",
+  });
+}
