@@ -5,42 +5,14 @@ import { useRouter } from "next/navigation";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import QuestionBankManager from "@/components/examiner/QuestionBankManager";
 import ExamManager from "@/components/examiner/ExamManager";
-import ExamInterface from "@/components/exam/ExamInterface";
 import ExamInstructionsModal from "@/components/exam/ExamInstructionsModal";
 import { removeToken } from "@/lib/auth";
 import { listQuestions, listExams } from "@/lib/api";
 import { User, UserRole } from "@/lib/types";
 
-const sampleQuestions = [
-  {
-    id: "q-1",
-    orderIndex: 1,
-    subject: "Computer Science",
-    type: "MCQ" as const,
-    content: "Which data structure uses LIFO (Last In First Out) principle?",
-    marks: 2.0,
-    negativeMarks: 0.5,
-    options: [
-      { id: "opt-1", option_text: "Queue" },
-      { id: "opt-2", option_text: "Stack" },
-      { id: "opt-3", option_text: "Binary Tree" },
-      { id: "opt-4", option_text: "Array" },
-    ],
-  },
-  {
-    id: "q-2",
-    orderIndex: 2,
-    subject: "Computer Science",
-    type: "SHORT_ANSWER" as const,
-    content: "Explain the difference between process and thread in operating systems.",
-    marks: 5.0,
-    negativeMarks: 0.0,
-  },
-];
-
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"questions" | "exams" | "simulation">("questions");
+  const [activeTab, setActiveTab] = useState<"questions" | "exams">("questions");
   const [questionCount, setQuestionCount] = useState<number>(0);
   const [examCount, setExamCount] = useState<number>(0);
   const [selectedExamForModal, setSelectedExamForModal] = useState<any | null>(null);
@@ -124,7 +96,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <h2 className="hero-title">Welcome, {user.name} 👋</h2>
-                    <p className="hero-email">Signed in as {user.email} | Phone: {candidateUser.phone_number}</p>
+                    <p className="hero-email">Signed in as {user.email} | Role: {user.role.toUpperCase()}</p>
                   </div>
                 </div>
               </div>
@@ -159,7 +131,7 @@ export default function DashboardPage() {
                 <div className="metric-icon" style={{ background: "#faf5ff", color: "#9333ea" }}>🎓</div>
                 <div>
                   <div className="metric-value">Active</div>
-                  <div className="metric-label">Candidate Room</div>
+                  <div className="metric-label">System Status</div>
                 </div>
               </div>
 
@@ -167,7 +139,7 @@ export default function DashboardPage() {
                 <div className="metric-icon" style={{ background: "#ecfeff", color: "#0891b2" }}>🛡️</div>
                 <div>
                   <div className="metric-value" style={{ fontSize: "1.1rem", color: "#0891b2" }}>MediaPipe</div>
-                  <div className="metric-label">AI Proctor Monitoring</div>
+                  <div className="metric-label">AI Proctor Engine</div>
                 </div>
               </div>
             </div>
@@ -187,12 +159,6 @@ export default function DashboardPage() {
                 >
                   📝 Exam Configurator
                 </button>
-                <button
-                  className={`segment-item ${activeTab === "simulation" ? "active" : ""}`}
-                  onClick={() => setActiveTab("simulation")}
-                >
-                  🎓 Live Exam Simulator
-                </button>
               </div>
             )}
 
@@ -201,17 +167,6 @@ export default function DashboardPage() {
               <>
                 {activeTab === "questions" && <QuestionBankManager />}
                 {activeTab === "exams" && <ExamManager />}
-                {activeTab === "simulation" && (
-                  <div className="panel-card">
-                    <ExamInterface
-                      sessionId="sim-session-1"
-                      subjectName="Computer Science Midterm"
-                      durationMinutes={30}
-                      questions={sampleQuestions}
-                      onSubmitExam={(ans) => alert("Exam Submitted! Answers: " + JSON.stringify(ans))}
-                    />
-                  </div>
-                )}
               </>
             ) : (
               /* Candidate Scheduled Exams View */
