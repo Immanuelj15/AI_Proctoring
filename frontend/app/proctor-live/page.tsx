@@ -93,6 +93,12 @@ export default function ExaminerLiveProctoringPortal() {
     return "#10b981";
   };
 
+  const getPulseDotClass = (status: string) => {
+    if (status === "DISQUALIFIED") return "pulse-dot red";
+    if (status === "WARNING") return "pulse-dot amber";
+    return "pulse-dot emerald";
+  };
+
   return (
     <ProtectedRoute>
       {(user: User) => (
@@ -133,8 +139,11 @@ export default function ExaminerLiveProctoringPortal() {
                 }}>
                   <div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                      <span className={`badge ${c.status === "DISQUALIFIED" ? "badge-admin" : c.status === "WARNING" ? "badge-student" : "badge-examiner"}`}>
-                        {c.status}
+                      <span style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+                        <span className={getPulseDotClass(c.status)}></span>
+                        <span className={`badge ${c.status === "DISQUALIFIED" ? "badge-admin" : c.status === "WARNING" ? "badge-student" : "badge-examiner"}`}>
+                          {c.status}
+                        </span>
                       </span>
                       <span style={{ fontSize: "0.78rem", color: "#64748b" }}>ID: {c.sessionId}</span>
                     </div>

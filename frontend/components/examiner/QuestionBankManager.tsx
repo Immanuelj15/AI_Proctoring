@@ -9,6 +9,11 @@ export default function QuestionBankManager() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Search & Filter state
+  const [searchTerm, setSearchTerm] = useState("");
+  const [typeFilter, setTypeFilter] = useState<string>("ALL");
+  const [difficultyFilter, setDifficultyFilter] = useState<string>("ALL");
+
   const [questionText, setQuestionText] = useState("");
   const [questionType, setQuestionType] = useState("MCQ");
   const [subject, setSubject] = useState("Computer Science");
@@ -98,6 +103,15 @@ export default function QuestionBankManager() {
       alert("Failed to delete question.");
     }
   };
+
+  // Filtered Questions list
+  const filteredQuestions = questions.filter((q) => {
+    const matchesSearch = q.question_text.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                          (q.subject && q.subject.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesType = typeFilter === "ALL" || q.question_type === typeFilter;
+    const matchesDifficulty = difficultyFilter === "ALL" || q.difficulty === difficultyFilter;
+    return matchesSearch && matchesType && matchesDifficulty;
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
@@ -212,19 +226,62 @@ export default function QuestionBankManager() {
         </form>
       </div>
 
-      {/* Existing Question Bank Grid */}
+      {/* Question Bank Explorer with Search & Filter Chips */}
       <div className="panel-card">
         <div className="panel-header">
-          <h3 className="panel-title">📚 Question Bank Explorer ({questions.length})</h3>
+          <h3 className="panel-title">📚 Question Bank Explorer ({filteredQuestions.length})</h3>
+        </div>
+
+        {/* Live Search & Filter Bar */}
+        <div style={{ marginBottom: "1.25rem" }}>
+          <div className="form-group">
+            <input
+              type="text"
+              className="form-input"
+              placeholder="🔍 Search questions by keyword or subject..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "0.75rem" }}>
+            <div className="filter-chip-bar">
+              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", display: "inline-flex", alignItems: "center" }}>Type:</span>
+              {["ALL", "MCQ", "SHORT_ANSWER", "LONG_ANSWER"].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  className={`filter-chip ${typeFilter === t ? "active" : ""}`}
+                  onClick={() => setTypeFilter(t)}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <div className="filter-chip-bar">
+              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b", display: "inline-flex", alignItems: "center" }}>Difficulty:</span>
+              {["ALL", "EASY", "MEDIUM", "HARD"].map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  className={`filter-chip ${difficultyFilter === d ? "active" : ""}`}
+                  onClick={() => setDifficultyFilter(d)}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
         {loading ? (
           <p>Loading questions...</p>
-        ) : questions.length === 0 ? (
-          <p style={{ color: "#64748b", fontSize: "0.9rem" }}>No questions created yet. Use the form above to add your first question.</p>
+        ) : filteredQuestions.length === 0 ? (
+          <p style={{ color: "#64748b", fontSize: "0.9rem" }}>No matching questions found.</p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
-            {questions.map((q) => (
+            {filteredQuestions.map((q) => (
               <div key={q.id} style={{ padding: "1rem 1.25rem", border: "1px solid #e2e8f0", borderRadius: "10px", background: "#ffffff" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div>

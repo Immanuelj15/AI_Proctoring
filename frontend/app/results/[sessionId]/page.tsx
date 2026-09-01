@@ -22,7 +22,6 @@ export default function StudentResultsPage({ params }: { params: { sessionId: st
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Fetch results from FastAPI backend or mock fallback
     async function fetchResults() {
       try {
         const token = localStorage.getItem("auth_token");
@@ -40,7 +39,6 @@ export default function StudentResultsPage({ params }: { params: { sessionId: st
           setMaxScore(data.max_score || 0);
         }
       } catch (err) {
-        // Fallback sample data
         setResults([
           {
             question_id: 1,
@@ -77,20 +75,61 @@ export default function StudentResultsPage({ params }: { params: { sessionId: st
     return Number(Math.round(Number(val + "e" + decimals)) + "e-" + decimals);
   }
 
+  // SVG Circular Ring Calculations
+  const strokeDashoffset = 283 - (283 * percentage) / 100;
+
   return (
     <ProtectedRoute>
       {(user: User) => (
         <div className="dashboard-container" style={{ maxWidth: "900px" }}>
-          {/* Result Header Hero */}
+          {/* Result Header Hero with Circular Score Ring */}
           <div className="dashboard-hero" style={{ background: "linear-gradient(135deg, #1e1b4b, #312e81)" }}>
             <div>
               <span className="badge badge-student" style={{ marginBottom: "0.5rem" }}>Exam Result Summary</span>
               <h2 className="hero-title">Candidate Performance Breakdown</h2>
               <p className="hero-email">Student: {user.name} ({user.email})</p>
             </div>
-            <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: "2.5rem", fontWeight: 900, color: "#38bdf8" }}>{percentage}%</div>
-              <div style={{ fontSize: "0.88rem", color: "#cbd5e1" }}>{totalScore} / {maxScore} Total Marks</div>
+
+            {/* Circular Score Progress Ring */}
+            <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
+              <div style={{ position: "relative", width: "90px", height: "90px" }}>
+                <svg width="90" height="90" viewBox="0 0 100 100">
+                  <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="10" />
+                  <circle
+                    cx="50"
+                    cy="50"
+                    r="45"
+                    fill="none"
+                    stroke="#38bdf8"
+                    strokeWidth="10"
+                    strokeDasharray="283"
+                    strokeDashoffset={strokeDashoffset}
+                    strokeLinecap="round"
+                    transform="rotate(-90 50 50)"
+                    style={{ transition: "stroke-dashoffset 1s ease-in-out" }}
+                  />
+                </svg>
+                <div style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "1.1rem",
+                  fontWeight: 900,
+                  color: "#ffffff"
+                }}>
+                  {percentage}%
+                </div>
+              </div>
+
+              <div style={{ textAlign: "left" }}>
+                <div style={{ fontSize: "1.4rem", fontWeight: 800, color: "#38bdf8" }}>{totalScore} / {maxScore}</div>
+                <div style={{ fontSize: "0.82rem", color: "#cbd5e1" }}>Total Awarded Marks</div>
+              </div>
             </div>
           </div>
 
