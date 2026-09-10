@@ -17,6 +17,8 @@ class SessionStatus(str, enum.Enum):
     ACTIVE = "active"
     SUBMITTED = "submitted"
     EXPIRED = "expired"
+    PUBLISHED = "published"
+    DISQUALIFIED = "disqualified"
 
 
 class ExamSession(Base):
@@ -38,6 +40,8 @@ class ExamSession(Base):
         nullable=False,
         default=SessionStatus.ACTIVE
     )
+    suspicion_score: Mapped[Optional[float]] = mapped_column(nullable=True, default=0.0)
+
 
     # Relationships
     exam: Mapped["Exam"] = relationship("Exam", back_populates="sessions")

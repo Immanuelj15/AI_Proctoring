@@ -1,0 +1,25 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { getToken } from "@/lib/auth";
+
+export default function ExaminerPage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    const token = getToken();
+    if (token) {
+      router.replace("/dashboard");
+    } else {
+      router.replace("/examiner/login");
+    }
+  }, [router]);
+
+  return (
+    <div style={{ minHeight: "50vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div className="pulse-dot pulse-dot-cyan" />
+      <span style={{ marginLeft: "0.75rem", color: "var(--text-muted)" }}>Redirecting to Examiner Hub...</span>
+    </div>
+  );
+}

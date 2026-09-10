@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect, useCallback } from "react";
+import { useRouter, useParams } from "next/navigation";
 import ImageAnswerUpload from "@/components/exam/ImageAnswerUpload";
 import { useProctoring } from "@/hooks/useProctoring";
+import { API_BASE_URL } from "@/lib/api";
 
 export interface Question {
   id: string;
@@ -13,64 +14,171 @@ export interface Question {
   content: string;
   marks: number;
   negativeMarks: number;
-  options?: { id: string; option_text: string }[];
+  options?: { id: number; option_text: string }[];
 }
 
-export default function SecureExamRoomPage({ params }: { params: { sessionId: string } }) {
+export default function SecureExamRoomPage() {
   const router = useRouter();
+  const routeParams = useParams();
+  const sessionId = Array.isArray(routeParams?.sessionId)
+    ? routeParams.sessionId[0]
+    : (routeParams?.sessionId as string) || "1";
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState<number>(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
-  const [secondsRemaining, setSecondsRemaining] = useState<number>(30 * 60);
+  const [secondsRemaining, setSecondsRemaining] = useState<number>(45 * 60);
   const [warningModalMessage, setWarningModalMessage] = useState<string | null>(null);
+  const [isDisqualified, setIsDisqualified] = useState<boolean>(false);
+  const [submitting, setSubmitting] = useState<boolean>(false);
+  const [examTitle, setExamTitle] = useState<string>("Database Management Systems (DBMS) Comprehensive Assessment");
+
   const [candidateInfo, setCandidateInfo] = useState({
-    name: "John Student",
+    name: "Candidate Student",
     email: "student@example.com",
     phone: "+1 (555) 019-2831"
   });
 
-  const sampleQuestions: Question[] = [
+  const defaultSampleQuestions: Question[] = [
     {
-      id: "q-101",
+      id: "1",
       orderIndex: 1,
-      subject: "Computer Science",
+      subject: "Database Management Systems",
       type: "MCQ",
-      content: "Which data structure uses LIFO (Last In First Out) principle?",
+      content: "Which of the following ACID properties ensures that concurrent execution of transactions leaves the database in the same state as if the transactions were executed serially without interference?",
       marks: 2.0,
       negativeMarks: 0.5,
       options: [
-        { id: "opt-1", option_text: "Queue" },
-        { id: "opt-2", option_text: "Stack" },
-        { id: "opt-3", option_text: "Binary Tree" },
-        { id: "opt-4", option_text: "Array" },
+        { id: 1, option_text: "Atomicity" },
+        { id: 2, option_text: "Consistency" },
+        { id: 3, option_text: "Isolation" },
+        { id: 4, option_text: "Durability" },
       ],
     },
     {
-      id: "q-102",
+      id: "2",
       orderIndex: 2,
-      subject: "Computer Science",
+      subject: "Database Management Systems",
+      type: "MCQ",
+      content: "In Relational Database normalization, a relation is in Boyce-Codd Normal Form (BCNF) if and only if for every non-trivial functional dependency X -> Y:",
+      marks: 2.0,
+      negativeMarks: 0.5,
+      options: [
+        { id: 5, option_text: "X is a Superkey" },
+        { id: 6, option_text: "Y is a Prime Attribute" },
+        { id: 7, option_text: "X is a Candidate Key and Y is not prime" },
+        { id: 8, option_text: "Every non-prime attribute is fully functionally dependent on the primary key" },
+      ],
+    },
+    {
+      id: "3",
+      orderIndex: 3,
+      subject: "Database Management Systems",
+      type: "MULTI_SELECT",
+      content: "Which of the following SQL statements belong to the Data Definition Language (DDL)? (Select all that apply)",
+      marks: 3.0,
+      negativeMarks: 0.0,
+      options: [
+        { id: 9, option_text: "CREATE TABLE" },
+        { id: 10, option_text: "ALTER TABLE" },
+        { id: 11, option_text: "DROP INDEX" },
+        { id: 12, option_text: "SELECT * FROM employees" },
+        { id: 13, option_text: "UPDATE users SET status = 'active'" },
+      ],
+    },
+    {
+      id: "4",
+      orderIndex: 4,
+      subject: "Database Management Systems",
       type: "SHORT_ANSWER",
-      content: "Explain the difference between process and thread in operating systems.",
+      content: "Explain the difference between a Primary Key and a Unique Key in relational database management systems.",
       marks: 5.0,
       negativeMarks: 0.0,
     },
     {
-      id: "q-103",
-      orderIndex: 3,
-      subject: "Mathematics",
+      id: "5",
+      orderIndex: 5,
+      subject: "Database Management Systems",
+      type: "LONG_ANSWER",
+      content: "Describe the Three Classic Concurrency Anomalies in database transactions: Dirty Read, Non-Repeatable Read, and Phantom Read. Explain how Transaction Isolation Levels prevent each anomaly.",
+      marks: 10.0,
+      negativeMarks: 0.0,
+    },
+    {
+      id: "6",
+      orderIndex: 6,
+      subject: "Database Management Systems",
       type: "IMAGE_UPLOAD",
-      content: "Upload handwritten calculation step for derivative of f(x) = x^3 + 2x.",
+      content: "Draw an Entity-Relationship (ER) Diagram on paper for a University Course Registration System with Entities: Student, Course, Instructor, and Department. Indicate Primary Keys, Foreign Keys, and Cardinalities (1:1, 1:N, M:N). Upload a clear photo or scan of your handwritten diagram.",
       marks: 10.0,
       negativeMarks: 0.0,
     }
   ];
 
+  const [questions, setQuestions] = useState<Question[]>(defaultSampleQuestions);
+
   const { metrics, wsConnected, videoRef, canvasRef } = useProctoring({
-    sessionId: params.sessionId,
+    sessionId: sessionId,
     onViolation: (type, inc) => {
-      setWarningModalMessage(`Proctoring Warning: Event '${type}' detected. Suspicion Index +${inc}`);
+      setWarningModalMessage(`Proctoring Incident: '${type}' detected. Cumulative Suspicion +${inc}`);
     },
+    onDisqualify: () => {
+      setIsDisqualified(true);
+      setWarningModalMessage("SESSION TERMINATED: Maximum suspicion threshold exceeded (100/100). The exam session has been disqualified for academic integrity violations.");
+    }
   });
+
+  // Load questions from local storage or backend API
+  useEffect(() => {
+    async function loadQuestions() {
+      try {
+        const stored = localStorage.getItem(`session_questions_${sessionId}`);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const mapped: Question[] = parsed.map((q: any, idx: number) => ({
+              id: String(q.id),
+              orderIndex: idx + 1,
+              subject: q.subject || "Database Management Systems",
+              type: q.question_type || "MCQ",
+              content: q.question_text,
+              marks: q.marks || 2.0,
+              negativeMarks: q.negative_marks || 0.0,
+              options: q.options || []
+            }));
+            setQuestions(mapped);
+            return;
+          }
+        }
+
+        // Direct fetch from backend
+        const token = localStorage.getItem("auth_token");
+        const numSessId = parseInt(sessionId, 10);
+        if (!isNaN(numSessId)) {
+          const res = await fetch(`${API_BASE_URL}/exam-sessions/${numSessId}/questions`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (Array.isArray(data) && data.length > 0) {
+              const mapped: Question[] = data.map((q: any, idx: number) => ({
+                id: String(q.id),
+                orderIndex: idx + 1,
+                subject: q.subject || "Database Management Systems",
+                type: q.question_type || "MCQ",
+                content: q.question_text,
+                marks: q.marks || 2.0,
+                negativeMarks: q.negative_marks || 0.0,
+                options: q.options || []
+              }));
+              setQuestions(mapped);
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
+    loadQuestions();
+  }, [sessionId]);
 
   // Fetch logged in candidate details
   useEffect(() => {
@@ -79,7 +187,7 @@ export default function SecureExamRoomPage({ params }: { params: { sessionId: st
       if (userRaw) {
         const u = JSON.parse(userRaw);
         setCandidateInfo({
-          name: u.name || "John Student",
+          name: u.name || "Candidate Student",
           email: u.email || "student@example.com",
           phone: u.phone_number || "+1 (555) 019-2831"
         });
@@ -87,15 +195,15 @@ export default function SecureExamRoomPage({ params }: { params: { sessionId: st
     } catch (err) {}
   }, []);
 
-  // Anti-Cheat Lockout Event Listeners & Fullscreen Enforcement
+  // Zero-Trust Anti-Cheat Lockout Event Listeners
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
     const handleCopyPaste = (e: ClipboardEvent) => e.preventDefault();
     const handleSelectStart = (e: Event) => e.preventDefault();
 
     const handleFullscreenChange = () => {
-      if (!document.fullscreenElement) {
-        setWarningModalMessage("CRITICAL VIOLATION: Fullscreen mode exited! Re-enter fullscreen or your session will be auto-terminated.");
+      if (!document.fullscreenElement && !isDisqualified) {
+        setWarningModalMessage("CRITICAL VIOLATION: Fullscreen mode exited! Re-enter fullscreen or this session will be recorded as a non-compliant attempt.");
       }
     };
 
@@ -112,23 +220,63 @@ export default function SecureExamRoomPage({ params }: { params: { sessionId: st
       document.removeEventListener("selectstart", handleSelectStart);
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
     };
-  }, []);
+  }, [isDisqualified]);
 
-  // Countdown timer
+  // Server-side remaining time sync & countdown
   useEffect(() => {
-    const timer = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          handleSubmitExam();
-          return 0;
+    async function syncTime() {
+      try {
+        const token = localStorage.getItem("auth_token");
+        const numSessId = parseInt(sessionId, 10);
+        if (!isNaN(numSessId)) {
+          const res = await fetch(`${API_BASE_URL}/exam-sessions/${numSessId}/time-remaining`, {
+            headers: { "Authorization": `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            if (data.time_remaining_seconds !== undefined) {
+              setSecondsRemaining(data.time_remaining_seconds);
+            }
+          }
         }
-        return prev - 1;
-      });
-    }, 1000);
+      } catch (e) {}
+    }
+    syncTime();
+  }, [sessionId]);
 
+  const handleSubmitExam = useCallback(async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      if (document.fullscreenElement && document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+      const token = localStorage.getItem("auth_token");
+      const numSessId = parseInt(sessionId, 10);
+      if (!isNaN(numSessId)) {
+        await fetch(`${API_BASE_URL}/exam-sessions/${numSessId}/submit`, {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+      }
+    } catch (err) {}
+    router.push(`/results/${sessionId}`);
+  }, [sessionId, submitting, router]);
+
+  // Timer Tick
+  useEffect(() => {
+    if (secondsRemaining <= 0) {
+      handleSubmitExam();
+      return;
+    }
+    const timer = setInterval(() => {
+      setSecondsRemaining((prev) => prev - 1);
+    }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [secondsRemaining, handleSubmitExam]);
 
   const formatTimer = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -137,249 +285,510 @@ export default function SecureExamRoomPage({ params }: { params: { sessionId: st
   };
 
   const reEnterFullscreen = () => {
+    setWarningModalMessage(null);
     if (document.documentElement.requestFullscreen) {
       document.documentElement.requestFullscreen().catch(() => {});
     }
-    setWarningModalMessage(null);
   };
 
-  const handleSubmitExam = async () => {
+  const saveAnswerToBackend = async (qId: string, answerPayload: any) => {
     try {
-      if (document.fullscreenElement && document.exitFullscreen) {
-        document.exitFullscreen().catch(() => {});
-      }
       const token = localStorage.getItem("auth_token");
-      await fetch(`http://127.0.0.1:8000/exam-sessions/${params.sessionId}/submit`, {
+      const numSessId = parseInt(sessionId, 10);
+      const numQId = parseInt(qId, 10);
+      if (isNaN(numSessId) || isNaN(numQId)) return;
+
+      const body: any = { question_id: numQId };
+      if (typeof answerPayload === "number") {
+        body.selected_option_id = answerPayload;
+      } else if (Array.isArray(answerPayload)) {
+        body.answer_text = answerPayload.join(",");
+      } else if (typeof answerPayload === "string") {
+        body.answer_text = answerPayload;
+      }
+
+      await fetch(`${API_BASE_URL}/exam-sessions/${numSessId}/answers`, {
         method: "POST",
         headers: {
           "Authorization": `Bearer ${token}`,
           "Content-Type": "application/json"
-        }
+        },
+        body: JSON.stringify(body)
       });
     } catch (err) {}
-    router.push(`/results/${params.sessionId}`);
   };
 
-  const currentQ = sampleQuestions[currentQuestionIndex];
+  const currentQ = questions[currentQuestionIndex] || questions[0];
 
-  const handleOptionSelect = (qId: string, optionId: string) => {
+  const handleOptionSelect = (qId: string, optionId: number) => {
     setAnswers((prev) => ({ ...prev, [qId]: optionId }));
+    saveAnswerToBackend(qId, optionId);
+  };
+
+  const handleMultiSelectToggle = (qId: string, optionId: number) => {
+    const current = (answers[qId] as number[]) || [];
+    const updated = current.includes(optionId)
+      ? current.filter((id) => id !== optionId)
+      : [...current, optionId];
+    setAnswers((prev) => ({ ...prev, [qId]: updated }));
+    saveAnswerToBackend(qId, updated);
   };
 
   const handleTextChange = (qId: string, text: string) => {
     setAnswers((prev) => ({ ...prev, [qId]: text }));
+    saveAnswerToBackend(qId, text);
   };
 
   const handleImageSelected = (qId: string, base64: string) => {
     setAnswers((prev) => ({ ...prev, [qId]: base64 }));
+    saveAnswerToBackend(qId, base64);
   };
 
-  const timerColorClass =
-    secondsRemaining < 60
-      ? "timer-red"
-      : secondsRemaining < 300
-      ? "timer-amber"
-      : "timer-normal";
+  const toggleFlagQuestion = (qId: string) => {
+    setFlaggedQuestions((prev) => ({ ...prev, [qId]: !prev[qId] }));
+  };
+
+  // Timer Color Calculation
+  const isTimerCritical = secondsRemaining < 60;
+  const isTimerWarning = secondsRemaining < 300;
+  const timerColor = isTimerCritical ? "#ef4444" : isTimerWarning ? "#f59e0b" : "#38bdf8";
+
+  // Palette Status Counts
+  const answeredCount = Object.keys(answers).filter((k) => answers[k] !== undefined && answers[k] !== "").length;
+  const flaggedCount = Object.values(flaggedQuestions).filter(Boolean).length;
 
   return (
-    <div style={{ width: "100%", maxWidth: "1200px", margin: "0 auto", userSelect: "none" }}>
-      {/* Warning Modal */}
+    <div style={{ width: "100%", userSelect: "none", height: "calc(100vh - 72px)", display: "flex", flexDirection: "column" }}>
+      {/* Warning & Disqualification Modal */}
       {warningModalMessage && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(15, 23, 42, 0.88)",
-          backdropFilter: "blur(12px)",
-          zIndex: 300,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: "1.5rem"
-        }}>
-          <div style={{ background: "#ffffff", padding: "2rem", borderRadius: "16px", maxWidth: "460px", textAlign: "center" }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>⚠️</div>
-            <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#dc2626", marginBottom: "0.5rem" }}>
-              Proctoring Violation Warning
+        <div className="hud-modal-overlay">
+          <div className="hud-modal-content" style={{ textAlign: "center" }}>
+            <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>
+              {isDisqualified ? "🚨" : "⚠️"}
+            </div>
+            <h3 style={{ fontSize: "1.3rem", fontWeight: 800, color: isDisqualified ? "#ef4444" : "#f59e0b", marginBottom: "0.5rem" }}>
+              {isDisqualified ? "Session Disqualified" : "Proctoring Integrity Warning"}
             </h3>
-            <p style={{ fontSize: "0.9rem", color: "#475569", marginBottom: "1.5rem", lineHeight: 1.5 }}>
+            <p style={{ fontSize: "0.92rem", color: "var(--text-secondary)", marginBottom: "1.75rem", lineHeight: 1.6 }}>
               {warningModalMessage}
             </p>
-            <button className="btn btn-primary" onClick={reEnterFullscreen}>
-              🔒 Re-Enter Fullscreen & Continue
-            </button>
+            {isDisqualified ? (
+              <button
+                className="btn-danger"
+                style={{ width: "100%", padding: "0.85rem" }}
+                onClick={() => router.push(`/results/${sessionId}`)}
+              >
+                Exit to Results Summary
+              </button>
+            ) : (
+              <button
+                className="btn-primary"
+                style={{ width: "100%", padding: "0.85rem" }}
+                onClick={reEnterFullscreen}
+              >
+                🔒 Re-Enter Fullscreen & Continue Exam
+              </button>
+            )}
           </div>
         </div>
       )}
 
-      {/* Candidate Metadata Banner & Top Header */}
-      <header className="app-header" style={{ marginBottom: "1.25rem", borderRadius: "14px", flexDirection: "column", alignItems: "stretch", gap: "0.75rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+      {/* Top Exam Header Banner */}
+      <div style={{
+        padding: "0.75rem 1.5rem",
+        background: "rgba(15, 23, 42, 0.75)",
+        borderBottom: "1px solid var(--border-subtle)",
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center"
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
           <div>
-            <span className="badge badge-student" style={{ fontSize: "0.75rem", marginBottom: "0.2rem" }}>
-              Exam Paper: Computer Science Midterm
-            </span>
-            <h2 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#0f172a" }}>Candidate: {candidateInfo.name}</h2>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-            <div className={`countdown-timer ${timerColorClass}`} style={{ fontSize: "1.25rem", fontWeight: 800 }}>
-              ⏱ {formatTimer(secondsRemaining)}
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span className="telemetry-pill pill-ai">{currentQ?.subject || "DBMS"}</span>
+              <span style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>Session #{sessionId}</span>
             </div>
-            <button className="btn btn-primary" onClick={handleSubmitExam} style={{ width: "auto" }}>
-              Submit Exam Paper
-            </button>
+            <h2 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#fff", marginTop: "0.15rem" }}>
+              {examTitle}
+            </h2>
           </div>
         </div>
 
-        {/* Candidate Identity Details Strip */}
+        {/* Center Countdown Timer */}
         <div style={{
           display: "flex",
-          gap: "1.5rem",
-          padding: "0.5rem 0.85rem",
-          background: "#f8fafc",
-          border: "1px solid #cbd5e1",
-          borderRadius: "8px",
-          fontSize: "0.82rem",
-          color: "#334155"
+          alignItems: "center",
+          gap: "0.75rem",
+          background: "rgba(0, 0, 0, 0.5)",
+          padding: "0.45rem 1.25rem",
+          borderRadius: "var(--radius-full)",
+          border: `1px solid ${timerColor}`,
+          boxShadow: `0 0 15px ${timerColor}33`
         }}>
-          <div>📧 Email: <strong>{candidateInfo.email}</strong></div>
-          <div>📞 Phone Number: <strong>{candidateInfo.phone}</strong></div>
-          <div>🛡️ Status: <strong style={{ color: "#16a34a" }}>Proctored Fullscreen Live</strong></div>
+          <span style={{ fontSize: "1rem" }}>⏱</span>
+          <span style={{
+            fontFamily: "var(--font-mono)",
+            fontSize: "1.3rem",
+            fontWeight: 800,
+            color: timerColor,
+            animation: isTimerCritical ? "pulseGlow 1s infinite" : "none"
+          }}>
+            {formatTimer(secondsRemaining)}
+          </span>
         </div>
-      </header>
 
-      {/* Two-Pane Main Layout */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 320px", gap: "1.5rem" }}>
-        {/* Left Pane: Question Prompt & Answer Area */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          <div className="panel-card">
-            <div className="panel-header">
-              <span className="badge badge-student">Question {currentQuestionIndex + 1} of {sampleQuestions.length}</span>
-              <span className="badge badge-admin">+{currentQ.marks} Marks ({currentQ.negativeMarks} Neg)</span>
+        {/* Right Candidate Strip & Submit Action */}
+        <div style={{ display: "flex", alignItems: "center", gap: "1.25rem" }}>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>{candidateInfo.name}</div>
+            <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{candidateInfo.email}</div>
+          </div>
+          <button
+            onClick={handleSubmitExam}
+            disabled={submitting}
+            className="btn-primary"
+            style={{ padding: "0.55rem 1.25rem", fontSize: "0.85rem" }}
+          >
+            {submitting ? "Submitting..." : "Submit Exam Paper"}
+          </button>
+        </div>
+      </div>
+
+      {/* Main 3-Column Layout Grid */}
+      <div className="exam-layout-grid" style={{ flex: 1, padding: "1rem 1.5rem" }}>
+        {/* ========================================================
+            COLUMN 1: QUESTION PALETTE SIDEBAR
+            ======================================================== */}
+        <aside className="question-palette-panel">
+          <div>
+            <h3 style={{ fontSize: "0.95rem", fontWeight: 800, color: "#fff", marginBottom: "0.25rem" }}>
+              Question Palette
+            </h3>
+            <p style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>
+              {questions.length} Questions Total
+            </p>
+          </div>
+
+          {/* Palette Status Summary Counters */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.4rem" }}>
+            <div style={{ background: "rgba(16, 185, 129, 0.1)", padding: "0.4rem 0.6rem", borderRadius: "var(--radius-sm)", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+              <div style={{ fontSize: "0.68rem", color: "#34d399", fontWeight: 700 }}>ANSWERED</div>
+              <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#34d399" }}>{answeredCount}</div>
+            </div>
+            <div style={{ background: "rgba(245, 158, 11, 0.1)", padding: "0.4rem 0.6rem", borderRadius: "var(--radius-sm)", border: "1px solid rgba(245, 158, 11, 0.25)" }}>
+              <div style={{ fontSize: "0.68rem", color: "#fbbf24", fontWeight: 700 }}>FLAGGED</div>
+              <div style={{ fontSize: "1.1rem", fontWeight: 800, color: "#fbbf24" }}>{flaggedCount}</div>
+            </div>
+          </div>
+
+          {/* Questions Grid Buttons */}
+          <div className="palette-grid">
+            {questions.map((q, idx) => {
+              const isCurrent = idx === currentQuestionIndex;
+              const isAnswered = answers[q.id] !== undefined && answers[q.id] !== "";
+              const isFlagged = flaggedQuestions[q.id];
+
+              let btnClass = "palette-btn-unvisited";
+              if (isCurrent) {
+                btnClass = "palette-btn-current";
+              } else if (isFlagged) {
+                btnClass = "palette-btn-flagged";
+              } else if (isAnswered) {
+                btnClass = "palette-btn-answered";
+              }
+
+              return (
+                <button
+                  key={q.id}
+                  onClick={() => setCurrentQuestionIndex(idx)}
+                  className={`palette-btn ${btnClass}`}
+                >
+                  {idx + 1}
+                  {isFlagged && <span style={{ fontSize: "0.6rem", position: "absolute", top: "2px", right: "4px" }}>🚩</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Legend */}
+          <div style={{ marginTop: "auto", borderTop: "1px solid var(--border-subtle)", paddingTop: "0.85rem", fontSize: "0.72rem", color: "var(--text-muted)", display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <div style={{ width: "12px", height: "12px", borderRadius: "3px", background: "linear-gradient(135deg, #06b6d4, #3b82f6)" }} />
+              <span>Current Active Question</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <div style={{ width: "12px", height: "12px", borderRadius: "3px", background: "rgba(16, 185, 129, 0.4)", border: "1px solid #10b981" }} />
+              <span>Answered & Saved</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <div style={{ width: "12px", height: "12px", borderRadius: "3px", background: "rgba(245, 158, 11, 0.4)", border: "1px solid #f59e0b" }} />
+              <span>Marked for Review</span>
+            </div>
+          </div>
+        </aside>
+
+        {/* ========================================================
+            COLUMN 2: MAIN QUESTION WORKSPACE
+            ======================================================== */}
+        <main className="exam-workspace">
+          {/* Workspace Header */}
+          <div className="exam-workspace-header">
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <span className="telemetry-pill pill-ai font-mono">Question {currentQuestionIndex + 1} of {questions.length}</span>
+              <span className="telemetry-pill pill-neutral">{currentQ.type}</span>
+              <span style={{ fontSize: "0.8rem", color: "var(--accent-emerald)", fontWeight: 700 }}>
+                +{currentQ.marks} Marks
+              </span>
+              {currentQ.negativeMarks > 0 && (
+                <span style={{ fontSize: "0.8rem", color: "var(--accent-rose)", fontWeight: 700 }}>
+                  -{currentQ.negativeMarks} Negative
+                </span>
+              )}
             </div>
 
-            <h3 style={{ fontSize: "1.1rem", fontWeight: 700, color: "#0f172a", marginBottom: "1.5rem", lineHeight: 1.5 }}>
-              {currentQ.content}
-            </h3>
+            <button
+              onClick={() => toggleFlagQuestion(currentQ.id)}
+              className="btn-ghost"
+              style={{ padding: "0.4rem 0.85rem", fontSize: "0.82rem", borderRadius: "var(--radius-sm)", color: flaggedQuestions[currentQ.id] ? "#fbbf24" : "var(--text-muted)" }}
+            >
+              {flaggedQuestions[currentQ.id] ? "🚩 Flagged for Review" : "🏳️ Flag Question"}
+            </button>
+          </div>
 
-            {/* MCQ Selector */}
+          {/* Question Body */}
+          <div className="exam-workspace-body">
+            <div style={{ fontSize: "1.15rem", fontWeight: 600, color: "#fff", lineHeight: 1.6, marginBottom: "2rem" }}>
+              {currentQ.content}
+            </div>
+
+            {/* Answer Input Widgets Based on Question Type */}
+
+            {/* 1. MCQ Radio Options */}
             {currentQ.type === "MCQ" && currentQ.options && (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
-                {currentQ.options.map((opt) => (
-                  <label
-                    key={opt.id}
-                    className="option-card"
-                    style={{ cursor: "pointer", background: answers[currentQ.id] === opt.id ? "#eff6ff" : "#ffffff", borderColor: answers[currentQ.id] === opt.id ? "#2563eb" : "#cbd5e1" }}
-                  >
-                    <input
-                      type="radio"
-                      name={`mcq-${currentQ.id}`}
-                      checked={answers[currentQ.id] === opt.id}
-                      onChange={() => handleOptionSelect(currentQ.id, opt.id)}
-                      style={{ width: "18px", height: "18px", accentColor: "#2563eb" }}
-                    />
-                    <span style={{ fontSize: "0.92rem", fontWeight: answers[currentQ.id] === opt.id ? 700 : 400 }}>
-                      {opt.option_text}
-                    </span>
-                  </label>
-                ))}
+              <div>
+                {currentQ.options.map((opt) => {
+                  const isSelected = answers[currentQ.id] === opt.id;
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => handleOptionSelect(currentQ.id, opt.id)}
+                      className={`option-card-label ${isSelected ? "option-card-selected" : ""}`}
+                    >
+                      <div className="custom-radio-circle">
+                        {isSelected && <div className="custom-radio-inner" />}
+                      </div>
+                      <span style={{ fontSize: "0.95rem", color: isSelected ? "#fff" : "var(--text-secondary)", fontWeight: isSelected ? 600 : 400 }}>
+                        {opt.option_text}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             )}
 
-            {/* Short/Long Answer Editor */}
-            {(currentQ.type === "SHORT_ANSWER" || currentQ.type === "LONG_ANSWER") && (
-              <div className="form-group">
+            {/* 2. MULTI_SELECT Checkboxes */}
+            {currentQ.type === "MULTI_SELECT" && currentQ.options && (
+              <div>
+                <p style={{ fontSize: "0.8rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+                  💡 Select all options that apply:
+                </p>
+                {currentQ.options.map((opt) => {
+                  const selectedArr = (answers[currentQ.id] as number[]) || [];
+                  const isChecked = selectedArr.includes(opt.id);
+                  return (
+                    <div
+                      key={opt.id}
+                      onClick={() => handleMultiSelectToggle(currentQ.id, opt.id)}
+                      className={`option-card-label ${isChecked ? "option-card-selected" : ""}`}
+                    >
+                      <div style={{
+                        width: "20px",
+                        height: "20px",
+                        borderRadius: "4px",
+                        border: isChecked ? "2px solid var(--primary-cyan)" : "2px solid var(--text-dim)",
+                        background: isChecked ? "var(--primary-cyan)" : "transparent",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "#000",
+                        fontSize: "0.75rem",
+                        fontWeight: 900
+                      }}>
+                        {isChecked && "✓"}
+                      </div>
+                      <span style={{ fontSize: "0.95rem", color: isChecked ? "#fff" : "var(--text-secondary)", fontWeight: isChecked ? 600 : 400 }}>
+                        {opt.option_text}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 3. SHORT_ANSWER Single Line / Small Textarea */}
+            {currentQ.type === "SHORT_ANSWER" && (
+              <div>
                 <textarea
-                  className="form-textarea"
-                  rows={6}
-                  placeholder="Type your response here..."
+                  className="hud-textarea"
+                  rows={4}
+                  placeholder="Type your concise technical answer here..."
                   value={answers[currentQ.id] || ""}
                   onChange={(e) => handleTextChange(currentQ.id, e.target.value)}
                 />
-                <div style={{ textAlign: "right", fontSize: "0.78rem", color: "#64748b", marginTop: "0.35rem" }}>
-                  Word Count: {(answers[currentQ.id] || "").trim() ? (answers[currentQ.id] || "").trim().split(/\s+/).length : 0}
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.5rem", textAlign: "right" }}>
+                  {(answers[currentQ.id] || "").length} characters | Word Count: {(answers[currentQ.id] || "").trim().split(/\s+/).filter(Boolean).length}
                 </div>
               </div>
             )}
 
-            {/* Handwritten Image Upload */}
+            {/* 4. LONG_ANSWER Structured Essay Textarea */}
+            {currentQ.type === "LONG_ANSWER" && (
+              <div>
+                <div style={{ fontSize: "0.8rem", color: "var(--primary-cyan)", marginBottom: "0.75rem", background: "rgba(6, 182, 212, 0.08)", padding: "0.5rem 0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid rgba(6, 182, 212, 0.2)" }}>
+                  💡 Grading Rubric: Focus on key definitions, architectural distinctions, and real-world database anomaly scenarios.
+                </div>
+                <textarea
+                  className="hud-textarea"
+                  rows={9}
+                  placeholder="Provide your in-depth technical explanation, breakdown, and concrete examples..."
+                  value={answers[currentQ.id] || ""}
+                  onChange={(e) => handleTextChange(currentQ.id, e.target.value)}
+                />
+                <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "0.5rem", textAlign: "right" }}>
+                  Word Count: {(answers[currentQ.id] || "").trim().split(/\s+/).filter(Boolean).length} words
+                </div>
+              </div>
+            )}
+
+            {/* 5. IMAGE_UPLOAD Handwritten ER Diagram / Calculation */}
             {currentQ.type === "IMAGE_UPLOAD" && (
-              <ImageAnswerUpload
-                onImageSelected={(base64) => handleImageSelected(currentQ.id, base64)}
-                currentImage={answers[currentQ.id]}
-              />
+              <div>
+                <div style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginBottom: "1rem" }}>
+                  📷 Draw your diagram on paper. Capture it with your webcam or upload a clear photo/scan.
+                  Tesseract OCR will automatically extract handwritten text for examiner audit.
+                </div>
+                <ImageAnswerUpload
+                  currentImage={answers[currentQ.id]}
+                  onImageSelected={(base64) => handleImageSelected(currentQ.id, base64)}
+                />
+              </div>
             )}
           </div>
 
-          {/* Nav Controls */}
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          {/* Workspace Footer Navigation */}
+          <div className="exam-workspace-footer">
             <button
-              className="btn btn-primary"
-              style={{ width: "auto", background: "#64748b" }}
-              disabled={currentQuestionIndex === 0}
               onClick={() => setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))}
+              disabled={currentQuestionIndex === 0}
+              className="btn-ghost"
+              style={{ opacity: currentQuestionIndex === 0 ? 0.4 : 1 }}
             >
-              ← Previous Question
+              ← Previous
             </button>
 
-            <button
-              className="btn btn-primary"
-              style={{ width: "auto" }}
-              disabled={currentQuestionIndex === sampleQuestions.length - 1}
-              onClick={() => setCurrentQuestionIndex((prev) => Math.min(sampleQuestions.length - 1, prev + 1))}
-            >
-              Next Question →
-            </button>
+            <div style={{ fontSize: "0.82rem", color: "var(--text-dim)" }}>
+              {answers[currentQ.id] ? "✓ Answer Saved" : "○ Unanswered"}
+            </div>
+
+            {currentQuestionIndex < questions.length - 1 ? (
+              <button
+                onClick={() => setCurrentQuestionIndex((prev) => Math.min(questions.length - 1, prev + 1))}
+                className="btn-primary"
+              >
+                Next Question →
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmitExam}
+                disabled={submitting}
+                className="btn-emerald"
+              >
+                {submitting ? "Finalizing..." : "Review & Submit Exam"}
+              </button>
+            )}
           </div>
-        </div>
+        </main>
 
-        {/* Right Sidebar: Webcam & Question Palette */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* Webcam Box */}
-          <div className="panel-card" style={{ padding: "1rem", textAlign: "center" }}>
-            <div style={{ position: "relative", width: "100%", height: "170px", background: "#0f172a", borderRadius: "10px", overflow: "hidden" }}>
-              <video ref={videoRef} autoPlay playsInline muted style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-              <canvas ref={canvasRef} style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%" }} />
-              <div style={{ position: "absolute", bottom: "8px", left: "8px", background: "rgba(15, 23, 42, 0.8)", color: "#ffffff", padding: "0.2rem 0.6rem", borderRadius: "4px", fontSize: "0.72rem", fontWeight: 700 }}>
-                {metrics.suspicionScore > 50 ? "⚠️ High Risk" : "🛡️ AI Monitored"}
+        {/* ========================================================
+            COLUMN 3: BIOMETRIC PROCTORING COMMAND HUD
+            ======================================================== */}
+        <aside className="proctor-hud-panel">
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+              <span className="pulse-dot pulse-dot-green" />
+              <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>
+                AI Vision Proctor
+              </span>
+            </div>
+            <span className="telemetry-pill pill-active font-mono" style={{ fontSize: "0.68rem" }}>
+              {wsConnected ? "STREAM ACTIVE" : "CONNECTING..."}
+            </span>
+          </div>
+
+          {/* Webcam Viewport with Scanner HUD Reticles */}
+          <div className="webcam-hud-box">
+            <video ref={videoRef} autoPlay playsInline muted className="webcam-video-feed" />
+            <canvas ref={canvasRef} style={{ display: "none" }} />
+
+            <div className="webcam-hud-overlay">
+              {/* Corner Reticles */}
+              <div className="scanner-corner corner-tl" />
+              <div className="scanner-corner corner-tr" />
+              <div className="scanner-corner corner-bl" />
+              <div className="scanner-corner corner-br" />
+
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <span style={{ background: "rgba(0,0,0,0.7)", padding: "2px 6px", borderRadius: "4px", fontSize: "0.65rem", color: "#38bdf8", fontFamily: "var(--font-mono)" }}>
+                  FACE TRACK: ACTIVE
+                </span>
+                <span style={{ background: "rgba(0,0,0,0.7)", padding: "2px 6px", borderRadius: "4px", fontSize: "0.65rem", color: "#34d399", fontFamily: "var(--font-mono)" }}>
+                  30 FPS
+                </span>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                <span style={{ background: "rgba(0,0,0,0.7)", padding: "2px 6px", borderRadius: "4px", fontSize: "0.65rem", color: "#fbbf24", fontFamily: "var(--font-mono)" }}>
+                  GAZE: CENTER
+                </span>
+                <div className="audio-spectrum-container">
+                  <div className="audio-bar-stick" style={{ height: "6px" }} />
+                  <div className="audio-bar-stick" style={{ height: "14px" }} />
+                  <div className="audio-bar-stick" style={{ height: "9px" }} />
+                  <div className="audio-bar-stick" style={{ height: "18px" }} />
+                </div>
               </div>
             </div>
-            <div style={{ marginTop: "0.6rem", fontSize: "0.82rem", color: "#64748b" }}>
-              Suspicion Score: <strong style={{ color: metrics.suspicionScore > 50 ? "#dc2626" : "#2563eb" }}>{metrics.suspicionScore.toFixed(0)} / 100</strong>
+          </div>
+
+          {/* Telemetry Metrics Breakdown */}
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
+            <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.65rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Tab Switch Policy:</span>
+              <span className="strike-badge-box font-mono" style={{ padding: "0.2rem 0.5rem" }}>
+                0 / 3 Strikes
+              </span>
+            </div>
+
+            <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.65rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Suspicion Index:</span>
+              <span style={{ fontSize: "0.82rem", fontWeight: 800, color: "#34d399" }}>
+                0.0 / 100 (Safe)
+              </span>
+            </div>
+
+            <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.65rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Zero-Trust Lockdown:</span>
+              <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#38bdf8" }}>
+                ENFORCED
+              </span>
             </div>
           </div>
 
-          {/* Question Palette */}
-          <div className="panel-card">
-            <h4 style={{ fontSize: "0.95rem", fontWeight: 800, color: "#0f172a", marginBottom: "0.85rem" }}>Question Palette</h4>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.5rem" }}>
-              {sampleQuestions.map((q, idx) => {
-                const isAnswered = !!answers[q.id];
-                const isActive = idx === currentQuestionIndex;
-                return (
-                  <button
-                    key={q.id}
-                    onClick={() => setCurrentQuestionIndex(idx)}
-                    style={{
-                      padding: "0.6rem",
-                      borderRadius: "8px",
-                      border: isActive ? "2px solid #2563eb" : "1px solid #cbd5e1",
-                      background: isActive ? "#2563eb" : isAnswered ? "#10b981" : "#ffffff",
-                      color: isActive ? "#ffffff" : isAnswered ? "#ffffff" : "#0f172a",
-                      fontWeight: 800,
-                      cursor: "pointer"
-                    }}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
-            </div>
+          {/* Compliance Notice */}
+          <div style={{ marginTop: "auto", background: "rgba(6, 182, 212, 0.05)", padding: "0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid rgba(6, 182, 212, 0.2)", fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
+            🛡️ Audio, video, and browser focus are continuously audited. Examiner intervention can occur live at any moment.
           </div>
-        </div>
+        </aside>
       </div>
     </div>
   );

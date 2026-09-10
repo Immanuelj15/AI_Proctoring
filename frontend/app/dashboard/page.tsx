@@ -168,7 +168,7 @@ export default function DashboardPage() {
             {/* Metric Stats Cards Grid */}
             <div className="stats-grid">
               <div className="metric-card">
-                <div className="metric-icon" style={{ background: "#eff6ff", color: "#2563eb" }}>📚</div>
+                <div className="metric-icon" style={{ background: "rgba(6, 182, 212, 0.15)", color: "#38bdf8" }}>📚</div>
                 <div>
                   <div className="metric-value">{questionCount}</div>
                   <div className="metric-label">Question Bank Items</div>
@@ -176,7 +176,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="metric-card">
-                <div className="metric-icon" style={{ background: "#f0fdf4", color: "#16a34a" }}>📝</div>
+                <div className="metric-icon" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399" }}>📝</div>
                 <div>
                   <div className="metric-value">{examCount}</div>
                   <div className="metric-label">Configured Exams</div>
@@ -184,7 +184,7 @@ export default function DashboardPage() {
               </div>
 
               <div className="metric-card">
-                <div className="metric-icon" style={{ background: "#faf5ff", color: "#9333ea" }}>🎓</div>
+                <div className="metric-icon" style={{ background: "rgba(139, 92, 246, 0.15)", color: "#c084fc" }}>🎓</div>
                 <div>
                   <div className="metric-value">Active</div>
                   <div className="metric-label">System Status</div>
@@ -192,9 +192,9 @@ export default function DashboardPage() {
               </div>
 
               <div className="metric-card">
-                <div className="metric-icon" style={{ background: "#ecfeff", color: "#0891b2" }}>🛡️</div>
+                <div className="metric-icon" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24" }}>🛡️</div>
                 <div>
-                  <div className="metric-value" style={{ fontSize: "1.1rem", color: "#0891b2" }}>MediaPipe</div>
+                  <div className="metric-value" style={{ fontSize: "1.1rem", color: "#fbbf24" }}>MediaPipe</div>
                   <div className="metric-label">AI Proctor Engine</div>
                 </div>
               </div>
@@ -248,12 +248,12 @@ export default function DashboardPage() {
                       </button>
                     </div>
 
-                    <p style={{ color: "#475569", marginBottom: "1.25rem", fontSize: "0.88rem" }}>
+                    <p style={{ color: "var(--text-muted)", marginBottom: "1.25rem", fontSize: "0.88rem" }}>
                       As an Administrator, you can approve or revoke login access for registered Students and Examiners.
                     </p>
 
                     {loadingUsers ? (
-                      <p>Loading users...</p>
+                      <p style={{ color: "var(--text-muted)" }}>Loading users...</p>
                     ) : (
                       <div style={{ display: "flex", flexDirection: "column", gap: "0.85rem" }}>
                         {usersList.map((u) => (
@@ -261,8 +261,8 @@ export default function DashboardPage() {
                             key={u.id}
                             style={{
                               padding: "1rem 1.25rem",
-                              background: u.is_approved ? "#ffffff" : "#fffbeb",
-                              border: `1.5px solid ${u.is_approved ? "#e2e8f0" : "#fde68a"}`,
+                              background: u.is_approved ? "rgba(15, 23, 42, 0.6)" : "rgba(245, 158, 11, 0.08)",
+                              border: `1px solid ${u.is_approved ? "var(--border-subtle)" : "rgba(245, 158, 11, 0.3)"}`,
                               borderRadius: "12px",
                               display: "flex",
                               justifyContent: "space-between",
@@ -276,8 +276,8 @@ export default function DashboardPage() {
                                   {u.is_approved ? "🟢 APPROVED" : "🟡 PENDING APPROVAL"}
                                 </span>
                               </div>
-                              <h4 style={{ fontSize: "1rem", fontWeight: 800, color: "#0f172a", marginTop: "0.3rem" }}>{u.name}</h4>
-                              <p style={{ fontSize: "0.82rem", color: "#64748b" }}>{u.email}</p>
+                              <h4 style={{ fontSize: "1rem", fontWeight: 800, color: "#fff", marginTop: "0.3rem" }}>{u.name}</h4>
+                              <p style={{ fontSize: "0.82rem", color: "var(--text-muted)" }}>{u.email}</p>
                             </div>
 
                             <div>
@@ -308,35 +308,37 @@ export default function DashboardPage() {
                   <h3 className="panel-title">🎓 Scheduled Candidate Examinations</h3>
                   <span className="badge badge-student">AI Proctor Monitored</span>
                 </div>
-                <p style={{ color: "#475569", marginBottom: "1.25rem", fontSize: "0.88rem" }}>
+                <p style={{ color: "var(--text-muted)", marginBottom: "1.25rem", fontSize: "0.88rem" }}>
                   Below are the examination papers configured by Examiners. Select a scheduled paper to start your proctored exam session.
                 </p>
 
                 {examsList.length === 0 ? (
-                  <div style={{ padding: "2rem", textAlign: "center", background: "#f8fafc", borderRadius: "12px", border: "1px dashed #cbd5e1" }}>
-                    <p style={{ color: "#64748b", fontSize: "0.9rem" }}>No exams configured yet by Examiners.</p>
+                  <div style={{ padding: "2rem", textAlign: "center", background: "rgba(15, 23, 42, 0.5)", borderRadius: "12px", border: "1px dashed var(--border-subtle)" }}>
+                    <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>No exams configured yet by Examiners.</p>
                   </div>
                 ) : (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                     {examsList.map((ex) => (
                       <div key={ex.id} style={{
-                        padding: "1.25rem",
-                        background: "#ffffff",
-                        border: "1.5px solid #e2e8f0",
+                        padding: "1.5rem",
+                        background: "rgba(15, 23, 42, 0.65)",
+                        border: "1px solid var(--border-subtle)",
                         borderRadius: "14px",
                         display: "flex",
                         flexDirection: "column",
                         justifyContent: "space-between",
-                        gap: "1rem"
+                        gap: "1.25rem",
+                        backdropFilter: "blur(12px)",
+                        boxShadow: "var(--shadow-sm)"
                       }}>
                         <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.4rem" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
                             <span className="badge badge-examiner">{ex.subject || "General"}</span>
                             <span className="badge badge-student">⏱ {ex.duration_minutes || ex.duration || 30} Mins</span>
                           </div>
-                          <h4 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#0f172a" }}>{ex.title}</h4>
-                          <p style={{ fontSize: "0.82rem", color: "#64748b", marginTop: "0.3rem" }}>
-                            Total Questions: <strong>{ex.question_count || ex.questions || 5}</strong> | Fullscreen Lock & MediaPipe Enabled
+                          <h4 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#fff" }}>{ex.title}</h4>
+                          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.3rem" }}>
+                            Total Questions: <strong style={{ color: "var(--primary-cyan)" }}>{ex.question_count || ex.questions || 5}</strong> | Fullscreen Lock & MediaPipe Enabled
                           </p>
                         </div>
 

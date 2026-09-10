@@ -63,7 +63,26 @@ def list_questions(
     if question_type:
         query = query.filter(QuestionBank.question_type == question_type)
 
-    return query.order_by(QuestionBank.created_at.desc()).all()
+    results = query.order_by(QuestionBank.created_at.desc()).all()
+    if current_user.role == UserRole.STUDENT:
+        sanitized = []
+        for q in results:
+            opts = [{"id": o.id, "question_id": o.question_id, "option_text": o.option_text, "is_correct": False} for o in (q.options or [])]
+            sanitized.append(QuestionResponse(
+                id=q.id,
+                question_text=q.question_text,
+                question_type=q.question_type,
+                subject=q.subject,
+                difficulty=q.difficulty,
+                model_answer=None,
+                marks=q.marks,
+                negative_marks=q.negative_marks,
+                created_by=q.created_by,
+                created_at=q.created_at,
+                options=opts
+            ))
+        return sanitized
+    return results
 
 @router.get("/{question_id}", response_model=QuestionResponse)
 def get_question(
@@ -72,8 +91,14 @@ def get_question(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Get a single question by ID.
+    Get a single question by ID (Rubrics restricted to Examiner & Admin).
     """
+    if current_user.role == UserRole.STUDENT:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Students cannot access Question Bank rubrics directly."
+        )
+
     question = db.query(QuestionBank).filter(QuestionBank.id == question_id).first()
     if not question:
         raise HTTPException(
@@ -81,6 +106,7 @@ def get_question(
             detail=f"Question with ID {question_id} not found."
         )
     return question
+
 
 @router.put("/{question_id}", response_model=QuestionResponse)
 def update_question(

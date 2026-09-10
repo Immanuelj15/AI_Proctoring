@@ -1,7 +1,7 @@
 import { LoginRequest, RegisterRequest, AuthResponse, User } from "./types";
 import { getToken } from "./auth";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
 class ApiError extends Error {
   status: number;
@@ -104,6 +104,13 @@ export async function listQuestions(subject?: string): Promise<any[]> {
   });
 }
 
+export async function updateQuestion(questionId: number, data: any): Promise<any> {
+  return request<any>(`/questions/${questionId}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function deleteQuestion(questionId: number): Promise<any> {
   return request<any>(`/questions/${questionId}`, {
     method: "DELETE",
@@ -124,10 +131,22 @@ export async function listExams(): Promise<any[]> {
   });
 }
 
+export async function getExam(examId: number): Promise<any> {
+  return request<any>(`/exams/${examId}`, {
+    method: "GET",
+  });
+}
+
 export async function addQuestionToExam(examId: number, questionId: number, orderIndex: number = 1): Promise<any> {
   return request<any>(`/exams/${examId}/questions`, {
     method: "POST",
     body: JSON.stringify({ question_id: questionId, question_order: orderIndex }),
+  });
+}
+
+export async function removeQuestionFromExam(examId: number, questionId: number): Promise<any> {
+  return request<any>(`/exams/${examId}/questions/${questionId}`, {
+    method: "DELETE",
   });
 }
 
@@ -143,4 +162,35 @@ export async function getExamSessionRemainingTime(sessionId: string): Promise<an
   return request<any>(`/exam-sessions/${sessionId}/time-remaining`, {
     method: "GET",
   });
+}
+
+// Examiner Review & Integrity API
+export async function getPendingReviewSessions(): Promise<any[]> {
+  return request<any[]>("/exam-sessions/pending-review", {
+    method: "GET",
+  });
+}
+
+export async function getSessionFullDetails(sessionId: number): Promise<any> {
+  return request<any>(`/exam-sessions/${sessionId}/full-details`, {
+    method: "GET",
+  });
+}
+
+export async function submitExaminerGrade(sessionId: number, payload: { overrides: any[]; feedback?: string }): Promise<any> {
+  return request<any>(`/exam-sessions/${sessionId}/grade`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function submitIntegrityDecision(sessionId: number, payload: { decision: "publish" | "disqualify"; reason?: string }): Promise<any> {
+  return request<any>(`/exam-sessions/${sessionId}/integrity-decision`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function getExamReportPdfUrl(sessionId: string | number): string {
+  return `${API_BASE_URL}/exam-sessions/${sessionId}/report.pdf`;
 }

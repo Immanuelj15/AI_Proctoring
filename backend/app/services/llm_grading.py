@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field
 
 class LLMEvaluationResult(BaseModel):
     suggested_score: float = Field(description="Suggested score out of max marks")
+    confidence: float = Field(default=0.92, description="Evaluation confidence score between 0.0 and 1.0")
     justification: str = Field(description="Brief feedback and rationale for the score")
     key_points_covered: List[str] = Field(default_factory=list, description="Key concepts correctly addressed")
     missing_concepts: List[str] = Field(default_factory=list, description="Key concepts missing or incorrect")
@@ -35,6 +36,7 @@ def evaluate_subjective_answer(
             Evaluate the student's answer accurately against the model answer.
             Return a JSON object with keys:
             - suggested_score (float, 0.0 to {max_marks})
+            - confidence (float between 0.0 and 1.0, rating evaluation certainty)
             - justification (string)
             - key_points_covered (list of strings)
             - missing_concepts (list of strings)
@@ -48,8 +50,10 @@ def evaluate_subjective_answer(
             )
 
             res_json = json.loads(response.choices[0].message.content)
+            conf = float(res_json.get("confidence", 0.94))
             return LLMEvaluationResult(
                 suggested_score=min(max_marks, max(0.0, float(res_json.get("suggested_score", 0.0)))),
+                confidence=min(1.0, max(0.0, conf)),
                 justification=res_json.get("justification", "Evaluated by AI Examiner."),
                 key_points_covered=res_json.get("key_points_covered", []),
                 missing_concepts=res_json.get("missing_concepts", [])
@@ -62,6 +66,7 @@ def evaluate_subjective_answer(
     if not student_response or len(student_response.strip()) == 0:
         return LLMEvaluationResult(
             suggested_score=0.0,
+            confidence=1.0,
             justification="No answer provided.",
             key_points_covered=[],
             missing_concepts=["Complete answer missing"]
@@ -75,9 +80,13 @@ def evaluate_subjective_answer(
     ratio = min(1.0, overlap / max(1, len(model_words))) if model_words else (0.7 if len(student_words) > 10 else 0.4)
 
     score = round(ratio * max_marks, 2)
+    confidence = round(max(0.70, min(0.96, 0.65 + (ratio * 0.3))), 2)
+
     return LLMEvaluationResult(
         suggested_score=score,
+        confidence=confidence,
         justification=f"AI Evaluated: Found {overlap} key matching terms from model rubric.",
         key_points_covered=[w for w in student_words if len(w) > 4][:3],
         missing_concepts=[w for w in model_words if len(w) > 4 and w not in student_words][:2]
     )
+

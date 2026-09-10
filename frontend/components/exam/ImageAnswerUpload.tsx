@@ -67,22 +67,22 @@ export default function ImageAnswerUpload({ onImageSelected, currentImage }: Ima
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
       {/* Upload & Camera Trigger Buttons */}
-      <div style={{ display: "flex", gap: "0.75rem" }}>
+      <div style={{ display: "flex", gap: "0.75rem", flexWrap: "wrap" }}>
         <button
           type="button"
-          className="btn"
-          style={{ background: "#f1f5f9", color: "#1e293b", border: "1px solid #cbd5e1" }}
+          className="btn-ghost"
+          style={{ padding: "0.6rem 1.25rem", borderRadius: "var(--radius-sm)", fontSize: "0.88rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", cursor: "pointer" }}
           onClick={() => fileInputRef.current?.click()}
         >
-          📁 Choose File
+          📁 Browse Local Image / Scan
         </button>
         <button
           type="button"
-          className="btn btn-primary"
-          style={{ width: "auto" }}
+          className="btn-cyan"
+          style={{ padding: "0.6rem 1.25rem", borderRadius: "var(--radius-sm)", fontSize: "0.88rem", display: "inline-flex", alignItems: "center", gap: "0.4rem", cursor: "pointer" }}
           onClick={startCamera}
         >
-          📷 Capture via Webcam
+          📷 Capture via Camera
         </button>
         <input
           ref={fileInputRef}
@@ -95,13 +95,13 @@ export default function ImageAnswerUpload({ onImageSelected, currentImage }: Ima
 
       {/* Live Camera Feed */}
       {isCameraActive && (
-        <div style={{ padding: "1rem", background: "#0f172a", borderRadius: "12px", textAlign: "center" }}>
-          <video ref={videoRef} autoPlay playsInline style={{ width: "100%", maxHeight: "280px", borderRadius: "8px" }} />
-          <div style={{ display: "flex", gap: "0.5rem", justifyContent: "center", marginTop: "0.75rem" }}>
-            <button type="button" className="btn btn-primary" onClick={captureSnapshot}>
-              📸 Take Snapshot
+        <div style={{ padding: "1.25rem", background: "#000", border: "1px solid rgba(6, 182, 212, 0.4)", borderRadius: "var(--radius-md)", textAlign: "center" }}>
+          <video ref={videoRef} autoPlay playsInline style={{ width: "100%", maxHeight: "280px", borderRadius: "8px", objectFit: "cover" }} />
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center", marginTop: "1rem" }}>
+            <button type="button" className="btn-emerald" style={{ padding: "0.5rem 1.25rem", fontSize: "0.88rem" }} onClick={captureSnapshot}>
+              📸 Snap Image
             </button>
-            <button type="button" className="btn btn-danger" onClick={stopCamera}>
+            <button type="button" className="btn-danger" style={{ padding: "0.5rem 1.25rem", fontSize: "0.88rem" }} onClick={stopCamera}>
               Cancel
             </button>
           </div>
@@ -110,11 +110,29 @@ export default function ImageAnswerUpload({ onImageSelected, currentImage }: Ima
 
       {/* Image Preview Container */}
       {preview && !isCameraActive && (
-        <div style={{ padding: "0.75rem", border: "1px solid #a7f3d0", background: "#ecfdf5", borderRadius: "10px" }}>
-          <p style={{ fontSize: "0.8rem", fontWeight: 700, color: "#065f46", marginBottom: "0.5rem" }}>
-            ✓ Handwritten Script Attached:
-          </p>
-          <img src={preview} alt="Answer Script Preview" style={{ maxWidth: "100%", maxHeight: "200px", borderRadius: "6px" }} />
+        <div style={{
+          padding: "1rem",
+          border: "1px solid rgba(16, 185, 129, 0.4)",
+          background: "rgba(16, 185, 129, 0.06)",
+          borderRadius: "var(--radius-md)"
+        }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+            <span style={{ fontSize: "0.82rem", fontWeight: 700, color: "#34d399", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+              ✓ Handwritten Script Attached & Ready for OCR Extraction
+            </span>
+            <button
+              type="button"
+              onClick={() => { setPreview(null); onImageSelected(""); }}
+              style={{ fontSize: "0.75rem", color: "#f87171", cursor: "pointer", background: "none" }}
+            >
+              Remove
+            </button>
+          </div>
+          <img
+            src={preview}
+            alt="Answer Script Preview"
+            style={{ maxWidth: "100%", maxHeight: "240px", borderRadius: "8px", border: "1px solid rgba(255,255,255,0.1)" }}
+          />
         </div>
       )}
     </div>

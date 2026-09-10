@@ -6,11 +6,22 @@ from app.routers import questions as questions_router
 from app.routers import exams as exams_router
 from app.routers import proctor as proctor_router
 from app.routers import sessions as sessions_router
+from app.database.database import engine
+from sqlalchemy import text
+from app.models import Base
 from app.services.exam_scheduler import start_scheduler, stop_scheduler
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Launch APScheduler background job for auto-submit
+    # Startup: Ensure database schema exists
+    Base.metadata.create_all(bind=engine)
+    with engine.connect() as conn:
+        try:
+            conn.execute(text("ALTER TABLE exam_sessions ADD COLUMN suspicion_score FLOAT DEFAULT 0.0"))
+            conn.commit()
+        except Exception:
+            pass
+    # Launch APScheduler background job for auto-submit
     start_scheduler()
     yield
     # Shutdown: Stop scheduler

@@ -52,3 +52,16 @@ class ExamSubmitResponse(BaseModel):
     auto_graded_count: int
     llm_evaluated_count: int
     results: List[QuestionResultResponse] = []
+
+class ExaminerGradeItem(BaseModel):
+    question_id: int
+    score: float
+    feedback: Optional[str] = None
+
+class ExaminerGradeRequest(BaseModel):
+    grades: List[ExaminerGradeItem]
+
+class IntegrityDecisionRequest(BaseModel):
+    decision: str  # 'publish' or 'disqualify'
+    reason: Optional[str] = None
+

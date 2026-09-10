@@ -25,74 +25,86 @@ export default function ExamInstructionsModal({
       left: 0,
       right: 0,
       bottom: 0,
-      background: "rgba(15, 23, 42, 0.82)",
-      backdropFilter: "blur(12px)",
+      background: "rgba(3, 7, 18, 0.88)",
+      backdropFilter: "blur(16px)",
       zIndex: 200,
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       padding: "1.5rem"
     }}>
-      <div className="auth-card" style={{ maxWidth: "560px", padding: "2.25rem" }}>
-        <div className="card-header">
-          <span className="badge badge-student" style={{ marginBottom: "0.5rem" }}>
-            Pre-Exam Verification
-          </span>
-          <h2 className="card-title" style={{ fontSize: "1.5rem" }}>{examTitle}</h2>
+      <div className="auth-card" style={{ maxWidth: "580px", padding: "2.25rem", margin: 0, border: "1px solid var(--border-light)", boxShadow: "0 0 40px rgba(6, 182, 212, 0.15)" }}>
+        <div className="card-header" style={{ textAlign: "left", marginBottom: "1.5rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+            <span className="badge badge-student">
+              Pre-Exam Verification
+            </span>
+            <span className="badge badge-examiner">
+              ⏱ {durationMinutes} Minutes
+            </span>
+          </div>
+          <h2 className="card-title" style={{ fontSize: "1.45rem", marginTop: "0.25rem" }}>{examTitle}</h2>
           <p className="card-description">
-            Duration: <strong>{durationMinutes} Minutes</strong> | Monitored by AI Proctoring
+            Monitored by AI Proctoring Engine with Zero-Trust Fullscreen Lockdown.
           </p>
         </div>
 
         {/* Candidate Identification Box */}
         <div style={{
-          background: "#f8fafc",
-          border: "1.5px solid #cbd5e1",
+          background: "rgba(15, 23, 42, 0.7)",
+          border: "1px solid var(--border-subtle)",
           borderRadius: "12px",
           padding: "1rem 1.25rem",
           marginBottom: "1.25rem"
         }}>
-          <h4 style={{ fontSize: "0.85rem", fontWeight: 800, color: "#1e3a8a", textTransform: "uppercase", marginBottom: "0.5rem" }}>
+          <h4 style={{ fontSize: "0.82rem", fontWeight: 800, color: "var(--primary-cyan)", textTransform: "uppercase", marginBottom: "0.6rem", letterSpacing: "0.04em" }}>
             👤 Verified Candidate Identity
           </h4>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", fontSize: "0.85rem", color: "#334155" }}>
-            <div>Name: <strong>{candidate.name}</strong></div>
-            <div>Role: <strong style={{ textTransform: "uppercase" }}>{candidate.role}</strong></div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem", fontSize: "0.85rem", color: "var(--text-secondary)" }}>
+            <div>Name: <strong style={{ color: "#fff" }}>{candidate.name}</strong></div>
+            <div>Role: <strong style={{ textTransform: "uppercase", color: "var(--primary-cyan)" }}>{candidate.role}</strong></div>
             <div style={{ gridColumn: "span 2" }}>
-              Email: <strong>{candidate.email}</strong>
-            </div>
-            <div style={{ gridColumn: "span 2" }}>
-              Phone Number: <strong>{candidate.phone_number || "+1 (555) 019-2831"}</strong>
+              Email: <strong style={{ color: "#fff" }}>{candidate.email}</strong>
             </div>
           </div>
         </div>
 
         {/* Proctoring Rules List */}
         <div style={{
-          background: "#fffbeb",
-          border: "1px solid #fde68a",
+          background: "rgba(245, 158, 11, 0.08)",
+          border: "1px solid rgba(245, 158, 11, 0.3)",
           borderRadius: "12px",
           padding: "1rem 1.25rem",
-          marginBottom: "1.5rem",
-          fontSize: "0.85rem",
-          color: "#92400e"
+          marginBottom: "1.75rem",
+          fontSize: "0.83rem",
+          color: "var(--text-secondary)"
         }}>
-          <h4 style={{ fontSize: "0.9rem", fontWeight: 800, color: "#b45309", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.35rem" }}>
-            ⚠️ Strict Proctoring & Anti-Cheat Rules
+          <h4 style={{ fontSize: "0.88rem", fontWeight: 800, color: "#fbbf24", marginBottom: "0.5rem", display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <span>⚠️</span> Strict Proctoring & Anti-Cheat Protocol
           </h4>
-          <ul style={{ paddingLeft: "1.2rem", display: "flex", flexDirection: "column", gap: "0.4rem", lineHeight: 1.4 }}>
-            <li><strong>Mandatory Fullscreen Mode</strong>: Starting the exam will launch full-screen mode. Exiting full-screen or switching windows will log suspicion events and auto-terminate your exam!</li>
-            <li><strong>Webcam & Face Tracking</strong>: MediaPipe FaceMesh tracks iris gaze direction and face count ($N=1$).</li>
-            <li><strong>Browser Restrictions</strong>: Right-click, copy-paste, and text selection are locked.</li>
+          <ul style={{ paddingLeft: "1.2rem", display: "flex", flexDirection: "column", gap: "0.35rem", lineHeight: 1.45 }}>
+            <li><strong style={{ color: "#fff" }}>Mandatory Fullscreen</strong>: Initiating the exam activates fullscreen lockdown. Exiting full-screen or switching tabs accumulates suspicion strikes.</li>
+            <li><strong style={{ color: "#fff" }}>Webcam Biometrics</strong>: MediaPipe AI audits eye gaze vector, head orientation, and single-candidate presence continuously.</li>
+            <li><strong style={{ color: "#fff" }}>Clipboard Lock</strong>: Copy, paste, right-click, and text selection are strictly disabled.</li>
           </ul>
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: "flex", gap: "0.75rem" }}>
-          <button type="button" className="btn btn-primary" onClick={onAgreeAndStart}>
-            🚀 I Agree & Start Fullscreen Exam
+        <div style={{ display: "flex", gap: "0.85rem" }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            style={{ flex: 1, padding: "0.8rem 1.25rem" }}
+            onClick={onAgreeAndStart}
+          >
+            🚀 Agree & Launch Exam
           </button>
-          <button type="button" className="btn btn-danger" style={{ width: "auto" }} onClick={onCancel}>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            style={{ padding: "0.8rem 1.25rem" }}
+            onClick={onCancel}
+          >
             Cancel
           </button>
         </div>

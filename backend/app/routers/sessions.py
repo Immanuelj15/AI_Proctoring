@@ -5,13 +5,15 @@ from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.database import get_db
-from app.dependencies.auth import get_current_user
-from app.models.user import User
+from app.dependencies.auth import get_current_user, require_role, oauth2_scheme
+from app.core.security import decode_access_token
+from app.models.user import User, UserRole
 from app.models.exam import Exam, ExamQuestion
 from app.models.question import QuestionBank, Option, QuestionType
 from app.models.session import ExamSession, SessionStatus
 from app.models.answer import Answer
 from app.models.result import Result, EvaluationType
+from fastapi.responses import StreamingResponse
 from app.schemas.session import (
     ExamStartRequest,
     ExamStartResponse,
@@ -19,9 +21,13 @@ from app.schemas.session import (
     AnswerResponse,
     ExamSubmitResponse,
     QuestionResultResponse,
+    ExaminerGradeRequest,
+    IntegrityDecisionRequest,
 )
 from app.services.llm_grading import evaluate_subjective_answer
 from app.services.ocr import extract_text_from_image
+from app.services.pdf_report import generate_exam_report_pdf
+
 
 router = APIRouter(prefix="/exam-sessions", tags=["Exam Session Engine"])
 
@@ -140,6 +146,40 @@ def get_session_time_remaining(
         "status": session.status,
         "time_remaining_seconds": remaining
     }
+
+@router.get("/{session_id}/questions")
+def get_session_questions(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Returns the exam questions and options associated with this session.
+    """
+    session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    exam = session.exam
+    exam_q_list = db.query(ExamQuestion).filter(ExamQuestion.exam_id == exam.id).order_by(ExamQuestion.question_order).all()
+    q_ids = [eq.question_id for eq in exam_q_list]
+    
+    # Preserve question order
+    q_dict = {q.id: q for q in db.query(QuestionBank).filter(QuestionBank.id.in_(q_ids)).all()} if q_ids else {}
+    ordered_questions = [q_dict[qid] for qid in q_ids if qid in q_dict]
+
+    result = []
+    for q in ordered_questions:
+        result.append({
+            "id": q.id,
+            "question_text": q.question_text,
+            "question_type": q.question_type.value if hasattr(q.question_type, "value") else str(q.question_type),
+            "subject": q.subject,
+            "marks": q.marks,
+            "negative_marks": q.negative_marks,
+            "options": [{"id": o.id, "option_text": o.option_text} for o in q.options] if q.options else []
+        })
+    return result
 
 @router.post("/{session_id}/answers", response_model=AnswerResponse)
 def submit_question_answer(
@@ -305,3 +345,255 @@ def submit_exam_session(
         llm_evaluated_count=llm_evaluated_count,
         results=result_responses
     )
+
+
+@router.get("/pending-review")
+def list_sessions_for_review(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Returns exam sessions requiring examiner subjective review and grading (Examiner & Admin only).
+    """
+    sessions = db.query(ExamSession).filter(
+        ExamSession.status.in_([SessionStatus.SUBMITTED, SessionStatus.EXPIRED, SessionStatus.PUBLISHED, SessionStatus.DISQUALIFIED])
+    ).order_by(ExamSession.id.desc()).all()
+
+    output = []
+    for s in sessions:
+        results = db.query(Result).filter(Result.session_id == s.id).all()
+        answers = db.query(Answer).filter(Answer.session_id == s.id).all()
+        total_score = sum(r.score for r in results) if s.status != SessionStatus.DISQUALIFIED else 0.0
+        max_score = sum(r.max_score for r in results)
+        output.append({
+            "session_id": s.id,
+            "student_id": s.student_id,
+            "student_name": s.student.name if s.student else "Candidate",
+            "student_email": s.student.email if s.student else "",
+            "exam_id": s.exam_id,
+            "exam_title": s.exam.title if s.exam else "Examination",
+            "subject": s.exam.subject if s.exam else "General",
+            "status": s.status,
+            "started_at": s.started_at,
+            "submitted_at": s.submitted_at,
+            "suspicion_score": s.suspicion_score or 0.0,
+            "total_score": round(total_score, 2),
+            "max_score": round(max_score, 2),
+            "answer_count": len(answers),
+            "needs_subjective_review": any(r.evaluation_type in [EvaluationType.AI, EvaluationType.EXAMINER] for r in results)
+        })
+
+    return output
+
+
+@router.get("/{session_id}/full-details")
+def get_session_full_details(
+    session_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Retrieves complete candidate answers, AI evaluations, and proctoring telemetry for review (Examiner & Admin only).
+    """
+    session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    answers = db.query(Answer).filter(Answer.session_id == session_id).all()
+    results = db.query(Result).filter(Result.session_id == session_id).all()
+    res_by_qid = {r.question_id: r for r in results}
+
+    answers_detail = []
+    for a in answers:
+        q = db.query(QuestionBank).filter(QuestionBank.id == a.question_id).first()
+        r = res_by_qid.get(a.question_id)
+        ocr_text = extract_text_from_image(a.image_path) if a.image_path else None
+        answers_detail.append({
+            "answer_id": a.id,
+            "question_id": a.question_id,
+            "question_text": q.question_text if q else "",
+            "question_type": q.question_type if q else "",
+            "max_marks": q.marks if q else 0.0,
+            "model_answer": q.model_answer if q else "",
+            "selected_option_id": a.selected_option_id,
+            "student_response": a.answer_text or "",
+            "image_path": a.image_path,
+            "ocr_text": ocr_text,
+            "current_score": r.score if r else 0.0,
+            "evaluation_type": r.evaluation_type if r else "manual",
+            "feedback": r.feedback if r else "",
+            "submitted_at": a.submitted_at
+        })
+
+    return {
+        "session_id": session.id,
+        "student_name": session.student.name if session.student else "Candidate",
+        "student_email": session.student.email if session.student else "",
+        "exam_title": session.exam.title if session.exam else "Examination",
+        "subject": session.exam.subject if session.exam else "General",
+        "status": session.status,
+        "suspicion_score": session.suspicion_score or 0.0,
+        "started_at": session.started_at,
+        "submitted_at": session.submitted_at,
+        "answers": answers_detail
+    }
+
+
+@router.post("/{session_id}/grade")
+def save_examiner_grades(
+    session_id: int,
+    payload: ExaminerGradeRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Examiner overrides AI/auto scores and adds feedback notes (Examiner & Admin only).
+    Rejects modification if session results have already been published.
+    """
+    session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    if session.status == SessionStatus.PUBLISHED:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot modify grades: Examination results have already been certified and published."
+        )
+
+    for item in payload.grades:
+        res = db.query(Result).filter(
+            Result.session_id == session_id,
+            Result.question_id == item.question_id
+        ).first()
+
+        if res:
+            res.score = item.score
+            res.evaluation_type = EvaluationType.EXAMINER
+            if item.feedback:
+                res.feedback = item.feedback
+        else:
+            q = db.query(QuestionBank).filter(QuestionBank.id == item.question_id).first()
+            max_m = q.marks if q else item.score
+            new_res = Result(
+                session_id=session_id,
+                question_id=item.question_id,
+                score=item.score,
+                max_score=max_m,
+                evaluation_type=EvaluationType.EXAMINER,
+                feedback=item.feedback or "Graded by Examiner"
+            )
+            db.add(new_res)
+
+    db.commit()
+    return {"message": "Grades successfully saved.", "session_id": session_id}
+
+
+@router.post("/{session_id}/integrity-decision")
+def make_integrity_decision(
+    session_id: int,
+    payload: IntegrityDecisionRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Examiner integrity decision: publish results or disqualify candidate session (Examiner & Admin only).
+    Disqualifying a session zeros out all marks in the database.
+    """
+    session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    decision = payload.decision.lower()
+    if decision == "publish":
+        session.status = SessionStatus.PUBLISHED
+    elif decision == "disqualify":
+        session.status = SessionStatus.DISQUALIFIED
+        # Zero out all results in DB for this session
+        results = db.query(Result).filter(Result.session_id == session_id).all()
+        for r in results:
+            r.score = 0.0
+            r.feedback = (r.feedback or "") + " [Disqualified for Academic Integrity Violation]"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid decision. Must be 'publish' or 'disqualify'.")
+
+    db.commit()
+    return {
+        "session_id": session_id,
+        "status": session.status,
+        "message": f"Session marked as {session.status.value.upper()}."
+    }
+
+
+@router.get("/{session_id}/report.pdf")
+def download_exam_report_pdf(
+    session_id: int,
+    token: Optional[str] = None,
+    db: Session = Depends(get_db),
+    auth_token: Optional[str] = Depends(oauth2_scheme)
+):
+    """
+    Generates and streams the official candidate scorecard PDF with SHA-256 digital verification.
+    Access restricted to candidate owner, Examiners, and Administrators (or certified published scorecards).
+    """
+    session = db.query(ExamSession).filter(ExamSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found.")
+
+    user = None
+    active_token = auth_token or token
+    if active_token:
+        payload = decode_access_token(active_token)
+        if payload and payload.get("sub"):
+            try:
+                user = db.query(User).filter(User.id == int(payload["sub"])).first()
+            except Exception:
+                pass
+
+    if user and user.role == UserRole.STUDENT and user.id != session.student_id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied to candidate scorecard.")
+
+    if not user and session.status not in [SessionStatus.PUBLISHED, SessionStatus.SUBMITTED]:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Authentication required to view unfinalized session report.")
+
+    results = db.query(Result).filter(Result.session_id == session_id).all()
+    results_list = []
+    total_score = 0.0
+    max_score = 0.0
+
+    for r in results:
+        q = db.query(QuestionBank).filter(QuestionBank.id == r.question_id).first()
+        actual_score = 0.0 if session.status == SessionStatus.DISQUALIFIED else r.score
+        total_score += actual_score
+        max_score += r.max_score
+        results_list.append({
+            "question_text": q.question_text if q else f"Question #{r.question_id}",
+            "question_type": q.question_type if q else "MCQ",
+            "score": actual_score,
+            "max_score": r.max_score,
+            "evaluation_type": r.evaluation_type,
+            "feedback": r.feedback or "Evaluated"
+        })
+
+    pdf_buffer = generate_exam_report_pdf(
+        session_id=session.id,
+        candidate_name=session.student.name if session.student else "Candidate",
+        candidate_email=session.student.email if session.student else "student@example.com",
+        exam_title=session.exam.title if session.exam else "Examination",
+        subject=session.exam.subject if session.exam else "General",
+        status=session.status.value,
+        total_score=round(total_score, 2),
+        max_score=round(max_score, 2),
+        suspicion_score=session.suspicion_score or 0.0,
+        results_list=results_list,
+        started_at=session.started_at,
+        submitted_at=session.submitted_at
+    )
+
+    filename = f"scorecard_session_{session_id}.pdf"
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"inline; filename={filename}"}
+    )
+
+
