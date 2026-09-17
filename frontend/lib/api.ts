@@ -117,6 +117,70 @@ export async function deleteQuestion(questionId: number): Promise<any> {
   });
 }
 
+export interface ExtractionOptions {
+  subject?: string;
+  easy_count?: number;
+  medium_count?: number;
+  hard_count?: number;
+  question_types?: string[];
+}
+
+export interface ExtractedQuestionsResult {
+  source_type: string;
+  source_name: string;
+  subject?: string;
+  extracted_count: number;
+  distribution: {
+    requested: { easy: number; medium: number; hard: number };
+    actual: { easy: number; medium: number; hard: number };
+  };
+  questions: any[];
+}
+
+export async function extractQuestionsFromFile(
+  file: File,
+  options: ExtractionOptions = {}
+): Promise<ExtractedQuestionsResult> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (options.subject) formData.append("subject", options.subject);
+  if (options.easy_count !== undefined) formData.append("easy_count", String(options.easy_count));
+  if (options.medium_count !== undefined) formData.append("medium_count", String(options.medium_count));
+  if (options.hard_count !== undefined) formData.append("hard_count", String(options.hard_count));
+  if (options.question_types && options.question_types.length > 0) {
+    formData.append("question_types", options.question_types.join(","));
+  }
+
+  const token = getToken();
+  const res = await fetch(`${API_BASE_URL}/questions/extract-file`, {
+    method: "POST",
+    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to extract questions from file.");
+  }
+  return data;
+}
+
+export async function extractQuestionsFromUrl(
+  payload: {
+    url: string;
+    subject?: string;
+    easy_count?: number;
+    medium_count?: number;
+    hard_count?: number;
+    question_types?: string[];
+  }
+): Promise<ExtractedQuestionsResult> {
+  return request<ExtractedQuestionsResult>("/questions/extract-url", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function extractQuestionsFromPdf(file: File, subject?: string): Promise<{ filename: string; extracted_count: number; questions: any[] }> {
   const formData = new FormData();
   formData.append("file", file);

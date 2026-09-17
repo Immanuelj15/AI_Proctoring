@@ -37,6 +37,11 @@ An enterprise-grade, full-stack online examination and proctoring platform combi
 ### 1. Examiner Command Center
 - **Question Bank Management**:
   - Support for Multiple Choice (**MCQ**) with negative marking, **Short Answer**, **Long Answer**, and **Handwritten Diagram / Photo Upload** (`IMAGE_UPLOAD`).
+  - **Multi-Source AI Question Extractor & Generator**:
+    - Direct import from documents: **PDF** (`.pdf`), **Microsoft Word** (`.docx`), Plain Text (`.txt`, `.md`).
+    - **External Web Link / URL Scraper**: Fetches any online documentation or article (e.g. Wikipedia, official docs) and strips headers/ads to extract relevant questions.
+    - **Parametric Difficulty Distribution**: Configurable question counts for **Easy**, **Medium**, and **Hard** difficulty tiers with live total tally.
+    - **Interactive Preview & Edit Workbench**: Verify, adjust marks, tweak answer keys, or toggle correct MCQ choices before batch importing into the question bank.
   - Search by keyword or subject, filter chips by question type and difficulty level (`EASY`, `MEDIUM`, `HARD`).
   - Full CRUD operations with glassmorphic **Edit Question Modal** and instant UI state synchronization.
   - Model Answer keys and AI rubrics securely scrubbed from student requests to eliminate data leakage.

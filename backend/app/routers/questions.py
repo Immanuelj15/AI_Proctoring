@@ -6,7 +6,21 @@ from app.dependencies.auth import get_current_user, require_examiner_only, requi
 from app.models.user import User, UserRole
 from app.models.question import QuestionBank, Option, QuestionType
 from app.schemas.question import QuestionCreate, QuestionUpdate, QuestionResponse
-from app.services.pdf_extractor import parse_questions_from_pdf
+from pydantic import BaseModel
+from app.services.pdf_extractor import (
+    parse_questions_from_pdf,
+    extract_text_from_file,
+    fetch_and_clean_web_content,
+    generate_questions_with_distribution,
+)
+
+class ExtractUrlRequest(BaseModel):
+    url: str
+    subject: Optional[str] = "General"
+    easy_count: Optional[int] = None
+    medium_count: Optional[int] = None
+    hard_count: Optional[int] = None
+    question_types: Optional[List[str]] = None
 
 router = APIRouter(prefix="/questions", tags=["Question Bank"])
 
@@ -187,29 +201,110 @@ def delete_question(
     db.commit()
     return None
 
+@router.post("/extract-file")
+async def extract_questions_from_file_upload(
+    file: UploadFile = File(...),
+    subject: Optional[str] = Form("General"),
+    easy_count: Optional[int] = Form(None),
+    medium_count: Optional[int] = Form(None),
+    hard_count: Optional[int] = Form(None),
+    question_types: Optional[str] = Form(None),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Extracts or generates questions from PDF, Word (.docx), or Text files
+    with optional difficulty distribution targets (Examiner & Admin only).
+    """
+    valid_exts = [".pdf", ".docx", ".txt", ".md"]
+    if not any(file.filename.lower().endswith(ext) for ext in valid_exts):
+        raise HTTPException(status_code=400, detail=f"Unsupported file format. Allowed formats: {', '.join(valid_exts)}")
+
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    text = extract_text_from_file(content, file.filename)
+    if not text.strip():
+        raise HTTPException(status_code=422, detail="No readable text could be extracted from this document.")
+
+    types_list = [t.strip() for t in question_types.split(",") if t.strip()] if question_types else None
+
+    questions = generate_questions_with_distribution(
+        raw_text=text,
+        subject=subject or "General",
+        easy_count=easy_count,
+        medium_count=medium_count,
+        hard_count=hard_count,
+        allowed_types=types_list
+    )
+
+    if not questions:
+        raise HTTPException(status_code=422, detail="No questions could be extracted or generated from this content.")
+
+    return {
+        "filename": file.filename,
+        "source": file.filename,
+        "extracted_count": len(questions),
+        "questions": questions
+    }
+
 @router.post("/extract-pdf")
 async def extract_questions_from_pdf_file(
     file: UploadFile = File(...),
     subject: Optional[str] = Form("General"),
+    easy_count: Optional[int] = Form(None),
+    medium_count: Optional[int] = Form(None),
+    hard_count: Optional[int] = Form(None),
+    question_types: Optional[str] = Form(None),
     current_user: User = Depends(require_role("examiner", "admin"))
 ):
     """
-    Extracts questions, options, and model answers from an uploaded question paper PDF (Examiner & Admin only).
-    Returns parsed structured questions for interactive preview and verification before saving.
+    Backward-compatible route for PDF extraction, supporting difficulty distribution.
     """
-    if not file.filename.lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="Only PDF files (.pdf) are supported.")
+    return await extract_questions_from_file_upload(
+        file=file,
+        subject=subject,
+        easy_count=easy_count,
+        medium_count=medium_count,
+        hard_count=hard_count,
+        question_types=question_types,
+        current_user=current_user
+    )
 
-    content = await file.read()
-    if len(content) == 0:
-        raise HTTPException(status_code=400, detail="Uploaded PDF file is empty.")
+@router.post("/extract-url")
+async def extract_questions_from_web_url(
+    payload: ExtractUrlRequest,
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Fetches an external website / article / syllabus URL, scrapes and cleans body text,
+    and uses AI to generate structured questions matching the requested difficulty distribution (Examiner & Admin only).
+    """
+    if not payload.url or not payload.url.startswith(("http://", "https://")):
+        raise HTTPException(status_code=400, detail="Please provide a valid web URL starting with http:// or https://")
 
-    questions = parse_questions_from_pdf(content, default_subject=subject or "General")
+    try:
+        cleaned_text = await fetch_and_clean_web_content(payload.url)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to fetch content from URL: {str(e)}")
+
+    if not cleaned_text.strip():
+        raise HTTPException(status_code=422, detail="The webpage did not return sufficient readable text to generate questions.")
+
+    questions = generate_questions_with_distribution(
+        raw_text=cleaned_text,
+        subject=payload.subject or "General",
+        easy_count=payload.easy_count,
+        medium_count=payload.medium_count,
+        hard_count=payload.hard_count,
+        allowed_types=payload.question_types
+    )
+
     if not questions:
-        raise HTTPException(status_code=422, detail="No readable questions could be extracted from this PDF. Please check that the PDF contains selectable text.")
+        raise HTTPException(status_code=422, detail="No questions could be generated from the webpage content.")
 
     return {
-        "filename": file.filename,
+        "source": payload.url,
         "extracted_count": len(questions),
         "questions": questions
     }
