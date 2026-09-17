@@ -117,6 +117,32 @@ export async function deleteQuestion(questionId: number): Promise<any> {
   });
 }
 
+export async function extractQuestionsFromPdf(file: File, subject?: string): Promise<{ filename: string; extracted_count: number; questions: any[] }> {
+  const formData = new FormData();
+  formData.append("file", file);
+  if (subject) formData.append("subject", subject);
+  const token = getToken();
+
+  const res = await fetch(`${API_BASE_URL}/questions/extract-pdf`, {
+    method: "POST",
+    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    body: formData,
+  });
+
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to extract questions from PDF.");
+  }
+  return data;
+}
+
+export async function batchCreateQuestions(questions: any[]): Promise<any[]> {
+  return request<any[]>("/questions/batch", {
+    method: "POST",
+    body: JSON.stringify(questions),
+  });
+}
+
 // Exam Configuration API
 export async function createExam(data: any): Promise<any> {
   return request<any>("/exams", {

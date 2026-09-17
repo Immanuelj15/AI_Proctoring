@@ -1,11 +1,12 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, File, UploadFile, Form
 from sqlalchemy.orm import Session
 from app.database.database import get_db
 from app.dependencies.auth import get_current_user, require_examiner_only, require_role
 from app.models.user import User, UserRole
 from app.models.question import QuestionBank, Option, QuestionType
 from app.schemas.question import QuestionCreate, QuestionUpdate, QuestionResponse
+from app.services.pdf_extractor import parse_questions_from_pdf
 
 router = APIRouter(prefix="/questions", tags=["Question Bank"])
 
@@ -185,3 +186,74 @@ def delete_question(
     db.delete(question)
     db.commit()
     return None
+
+@router.post("/extract-pdf")
+async def extract_questions_from_pdf_file(
+    file: UploadFile = File(...),
+    subject: Optional[str] = Form("General"),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Extracts questions, options, and model answers from an uploaded question paper PDF (Examiner & Admin only).
+    Returns parsed structured questions for interactive preview and verification before saving.
+    """
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files (.pdf) are supported.")
+
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded PDF file is empty.")
+
+    questions = parse_questions_from_pdf(content, default_subject=subject or "General")
+    if not questions:
+        raise HTTPException(status_code=422, detail="No readable questions could be extracted from this PDF. Please check that the PDF contains selectable text.")
+
+    return {
+        "filename": file.filename,
+        "extracted_count": len(questions),
+        "questions": questions
+    }
+
+@router.post("/batch", response_model=List[QuestionResponse], status_code=status.HTTP_201_CREATED)
+def batch_create_questions(
+    questions: List[QuestionCreate],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Batch-creates multiple questions into the Question Bank in a single atomic transaction (Examiner & Admin only).
+    """
+    if not questions:
+        raise HTTPException(status_code=400, detail="Question list cannot be empty.")
+
+    created_questions = []
+    for data in questions:
+        new_q = QuestionBank(
+            question_text=data.question_text,
+            question_type=data.question_type,
+            subject=data.subject,
+            difficulty=data.difficulty or "MEDIUM",
+            model_answer=data.model_answer,
+            marks=data.marks,
+            negative_marks=data.negative_marks,
+            created_by=current_user.id
+        )
+        db.add(new_q)
+        db.flush()
+
+        if data.options:
+            for opt in data.options:
+                new_opt = Option(
+                    question_id=new_q.id,
+                    option_text=opt.option_text,
+                    is_correct=opt.is_correct
+                )
+                db.add(new_opt)
+
+        created_questions.append(new_q)
+
+    db.commit()
+    for q in created_questions:
+        db.refresh(q)
+
+    return created_questions
