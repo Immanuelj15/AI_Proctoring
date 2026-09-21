@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import ImageAnswerUpload from "@/components/exam/ImageAnswerUpload";
+import IdentityVerificationModal from "@/components/exam/IdentityVerificationModal";
 import { useProctoring } from "@/hooks/useProctoring";
-import { API_BASE_URL } from "@/lib/api";
+import { API_BASE_URL, resumeExamSession, periodicFaceCheck } from "@/lib/api";
 
 export interface Question {
   id: string;
@@ -31,6 +32,12 @@ export default function SecureExamRoomPage() {
   const [isDisqualified, setIsDisqualified] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [examTitle, setExamTitle] = useState<string>("Database Management Systems (DBMS) Comprehensive Assessment");
+
+  // Phase 1: Identity & Room Scan Onboarding State
+  const [showIdentityModal, setShowIdentityModal] = useState<boolean>(false);
+  const [isVerified, setIsVerified] = useState<boolean>(false);
+  const [isRoomScanned, setIsRoomScanned] = useState<boolean>(false);
+  const lastPeriodicCheckRef = useRef<number>(Date.now());
 
   const [candidateInfo, setCandidateInfo] = useState({
     name: "Candidate Student",
@@ -127,58 +134,92 @@ export default function SecureExamRoomPage() {
     }
   });
 
-  // Load questions from local storage or backend API
+  // Crash-Safe Resume: Load session details, deterministically ordered questions & restored answers
   useEffect(() => {
-    async function loadQuestions() {
+    async function initSession() {
       try {
-        const stored = localStorage.getItem(`session_questions_${sessionId}`);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const mapped: Question[] = parsed.map((q: any, idx: number) => ({
-              id: String(q.id),
-              orderIndex: idx + 1,
-              subject: q.subject || "Database Management Systems",
-              type: q.question_type || "MCQ",
-              content: q.question_text,
-              marks: q.marks || 2.0,
-              negativeMarks: q.negative_marks || 0.0,
-              options: q.options || []
-            }));
-            setQuestions(mapped);
-            return;
+        const resumeData = await resumeExamSession(sessionId);
+        if (resumeData) {
+          if (resumeData.exam_title) {
+            setExamTitle(resumeData.exam_title);
           }
-        }
+          if (resumeData.time_remaining_seconds !== undefined) {
+            setSecondsRemaining(resumeData.time_remaining_seconds);
+          }
+          if (Array.isArray(resumeData.questions) && resumeData.questions.length > 0) {
+            setQuestions(resumeData.questions);
+          }
+          if (resumeData.answers) {
+            const restoredAnswers: Record<string, any> = {};
+            for (const [qid, a] of Object.entries(resumeData.answers as Record<string, any>)) {
+              if (a.selected_option_id !== null && a.selected_option_id !== undefined) {
+                restoredAnswers[qid] = a.selected_option_id;
+              } else if (a.answer_text) {
+                if (a.answer_text.includes(",")) {
+                  const parts = a.answer_text.split(",").map((n: string) => parseInt(n.trim(), 10)).filter((n: number) => !isNaN(n));
+                  restoredAnswers[qid] = parts.length > 0 ? parts : a.answer_text;
+                } else {
+                  restoredAnswers[qid] = a.answer_text;
+                }
+              } else if (a.image_path) {
+                restoredAnswers[qid] = a.image_path;
+              }
+            }
+            setAnswers(restoredAnswers);
+          }
 
-        // Direct fetch from backend
-        const token = localStorage.getItem("auth_token");
-        const numSessId = parseInt(sessionId, 10);
-        if (!isNaN(numSessId)) {
-          const res = await fetch(`${API_BASE_URL}/exam-sessions/${numSessId}/questions`, {
-            headers: { "Authorization": `Bearer ${token}` }
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data) && data.length > 0) {
-              const mapped: Question[] = data.map((q: any, idx: number) => ({
-                id: String(q.id),
-                orderIndex: idx + 1,
-                subject: q.subject || "Database Management Systems",
-                type: q.question_type || "MCQ",
-                content: q.question_text,
-                marks: q.marks || 2.0,
-                negativeMarks: q.negative_marks || 0.0,
-                options: q.options || []
-              }));
-              setQuestions(mapped);
+          // Check Phase 1 Onboarding: Identity & Room Scan
+          if (!resumeData.identity_verified || !resumeData.room_scan_completed) {
+            setShowIdentityModal(true);
+          } else {
+            setIsVerified(true);
+            setIsRoomScanned(true);
+          }
+          return;
+        }
+      } catch (err) {
+        // Fallback: Check local storage cache if offline
+        try {
+          const stored = localStorage.getItem(`session_questions_${sessionId}`);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setQuestions(parsed);
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
+    initSession();
+  }, [sessionId]);
+
+  // Periodic background face-check during active exam
+  useEffect(() => {
+    if (!isVerified || showIdentityModal || isDisqualified) return;
+
+    const interval = setInterval(async () => {
+      try {
+        if (videoRef.current) {
+          const canvas = document.createElement("canvas");
+          canvas.width = videoRef.current.videoWidth || 640;
+          canvas.height = videoRef.current.videoHeight || 480;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.75));
+            if (blob) {
+              const formData = new FormData();
+              formData.append("live_frame", blob, "periodic_frame.jpg");
+              await periodicFaceCheck(sessionId, formData);
             }
           }
         }
       } catch (e) {}
-    }
+    }, 180000); // Check every 3 minutes
 
-    loadQuestions();
-  }, [sessionId]);
+    return () => clearInterval(interval);
+  }, [sessionId, isVerified, showIdentityModal, isDisqualified, videoRef]);
 
   // Fetch logged in candidate details
   useEffect(() => {
@@ -266,8 +307,9 @@ export default function SecureExamRoomPage() {
     router.push(`/results/${sessionId}`);
   }, [sessionId, submitting, router]);
 
-  // Timer Tick
+  // Timer Tick (only ticks when onboarding modal is not active)
   useEffect(() => {
+    if (showIdentityModal) return;
     if (secondsRemaining <= 0) {
       handleSubmitExam();
       return;
@@ -276,7 +318,7 @@ export default function SecureExamRoomPage() {
       setSecondsRemaining((prev) => prev - 1);
     }, 1000);
     return () => clearInterval(timer);
-  }, [secondsRemaining, handleSubmitExam]);
+  }, [secondsRemaining, handleSubmitExam, showIdentityModal]);
 
   const formatTimer = (secs: number) => {
     const m = Math.floor(secs / 60);
@@ -790,6 +832,24 @@ export default function SecureExamRoomPage() {
           </div>
         </aside>
       </div>
+
+      {/* Phase 1 Pre-Exam Identity Verification & Room Scan Modal */}
+      {showIdentityModal && (
+        <IdentityVerificationModal
+          sessionId={sessionId}
+          candidateName={candidateInfo.name}
+          examTitle={examTitle}
+          onComplete={() => {
+            setShowIdentityModal(false);
+            setIsVerified(true);
+            setIsRoomScanned(true);
+            if (document.documentElement.requestFullscreen) {
+              document.documentElement.requestFullscreen().catch(() => {});
+            }
+          }}
+          onCancel={() => router.push("/dashboard")}
+        />
+      )}
     </div>
   );
 }

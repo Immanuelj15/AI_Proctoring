@@ -1,8 +1,12 @@
 import json
-from typing import Dict, List
+from datetime import datetime, timezone
+from typing import Dict, List, Optional
+from pydantic import BaseModel
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from app.database.database import get_db
+from app.dependencies.auth import get_current_user, require_role
+from app.models.user import User, UserRole
 from app.models.session import ExamSession, SessionStatus
 from app.models.proctor_event import ProctorEvent, ProctorEventType
 
@@ -46,7 +50,9 @@ manager = ConnectionManager()
 @router.websocket("/stream")
 async def proctoring_stream(websocket: WebSocket, db: Session = Depends(get_db)):
     """
-    Real-Time Client Proctoring Telemetry Stream
+    Real-Time Client Proctoring Telemetry Stream.
+    Stores raw AI violations as PENDING review events.
+    Never auto-penalizes or auto-disqualifies from AI flags alone.
     """
     session_id = websocket.query_params.get("session_id", "default-session")
     await manager.connect(websocket, session_id)
@@ -63,7 +69,7 @@ async def proctoring_stream(websocket: WebSocket, db: Session = Depends(get_db))
             command = data.get("command")  # e.g., 'WARN' or 'DISQUALIFY' from examiner
 
             if command:
-                # Examiner intervention command to student
+                # Examiner manual intervention command to student
                 await manager.broadcast_to_session(str(target_session), {
                     "type": "EXAMINER_COMMAND",
                     "command": command,
@@ -91,15 +97,16 @@ async def proctoring_stream(websocket: WebSocket, db: Session = Depends(get_db))
                         session_id=str(db_sess_id),
                         event_type=event_enum,
                         suspicion_increment=suspicion_delta,
+                        snapshot_url=data.get("snapshot_url"),
+                        review_status="PENDING",
+                        timestamp=datetime.now(timezone.utc)
                     )
                     db.add(event_record)
 
-                    # Update cumulative session suspicion score
+                    # Update provisional AI suspicion score (visible only to examiner review queue)
                     session_obj = db.query(ExamSession).filter(ExamSession.id == db_sess_id).first()
                     if session_obj:
-                        session_obj.suspicion_score = min(100.0, (session_obj.suspicion_score or 0.0) + suspicion_delta)
-                        if session_obj.suspicion_score >= 100.0:
-                            session_obj.status = SessionStatus.DISQUALIFIED
+                        session_obj.ai_suspicion_score = min(100.0, (session_obj.ai_suspicion_score or 0.0) + suspicion_delta)
 
                     db.commit()
 
@@ -133,11 +140,16 @@ def list_monitored_sessions(db: Session = Depends(get_db)):
             "candidateName": s.student.name if s.student else "Candidate",
             "candidateEmail": s.student.email if s.student else "",
             "examTitle": s.exam.title if s.exam else "Exam",
-            "suspicionScore": round(s.suspicion_score or 0.0, 1),
+            "suspicionScore": round(s.confirmed_suspicion_score or 0.0, 1),
+            "aiSuspicionScore": round(s.ai_suspicion_score or 0.0, 1),
             "status": s.status.value.upper(),
             "lastEvent": last_event.event_type.value if last_event else "MONITORING_ACTIVE",
             "faceCount": 1,
-            "isGazeCenter": True
+            "isGazeCenter": True,
+            "identityVerified": bool(s.identity_verified),
+            "identityConfidence": s.identity_confidence,
+            "roomScanCompleted": bool(s.room_scan_completed),
+            "roomScanUrl": s.room_scan_url
         })
     return output
 
@@ -155,8 +167,114 @@ def get_session_proctor_events(session_id: int, db: Session = Depends(get_db)):
             "event_type": e.event_type.value,
             "suspicion_increment": e.suspicion_increment,
             "snapshot_url": e.snapshot_url,
+            "review_status": e.review_status,
+            "reviewed_by": e.reviewed_by,
+            "reviewed_at": e.reviewed_at.isoformat() if e.reviewed_at else None,
+            "examiner_notes": e.examiner_notes,
             "timestamp": e.timestamp.isoformat() if e.timestamp else ""
         }
         for e in events
     ]
+
+
+class EventReviewRequest(BaseModel):
+    decision: str  # "CONFIRM" or "DISMISS"
+    notes: Optional[str] = None
+
+
+@router.get("/review-queue")
+def get_hybrid_review_queue(
+    status_filter: Optional[str] = "PENDING",
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Hybrid Review Queue (Examiner & Admin only):
+    Retrieves flagged proctoring events awaiting human adjudication.
+    Attaches room scan clip for examiner review if the session has flags.
+    """
+    query = db.query(ProctorEvent).order_by(ProctorEvent.timestamp.desc())
+    if status_filter and status_filter.upper() != "ALL":
+        query = query.filter(ProctorEvent.review_status == status_filter.upper())
+
+    events = query.limit(100).all()
+    output = []
+    for e in events:
+        session = e.session
+        output.append({
+            "id": e.id,
+            "session_id": e.session_id,
+            "candidate_name": session.student.name if session and session.student else "Candidate",
+            "candidate_email": session.student.email if session and session.student else "",
+            "exam_title": session.exam.title if session and session.exam else "Examination",
+            "event_type": e.event_type.value if hasattr(e.event_type, "value") else str(e.event_type),
+            "suspicion_increment": e.suspicion_increment,
+            "snapshot_url": e.snapshot_url,
+            "room_scan_url": session.room_scan_url if session else None,
+            "review_status": e.review_status,
+            "reviewed_by": e.reviewed_by,
+            "reviewed_at": e.reviewed_at.isoformat() if e.reviewed_at else None,
+            "examiner_notes": e.examiner_notes,
+            "timestamp": e.timestamp.isoformat() if e.timestamp else "",
+            "session_ai_suspicion": round(session.ai_suspicion_score or 0.0, 1) if session else 0.0,
+            "session_confirmed_suspicion": round(session.confirmed_suspicion_score or 0.0, 1) if session else 0.0,
+            "identity_confidence": session.identity_confidence if session else None
+        })
+
+    return output
+
+
+@router.post("/events/{event_id}/review")
+def review_proctor_event(
+    event_id: str,
+    payload: EventReviewRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("examiner", "admin"))
+):
+    """
+    Adjudicate an AI-flagged violation:
+    - CONFIRM: Adds suspicion increment to official confirmed suspicion score.
+    - DISMISS: Classifies flag as a false positive with zero score penalty.
+    """
+    event = db.query(ProctorEvent).filter(ProctorEvent.id == event_id).first()
+    if not event:
+        raise HTTPException(status_code=404, detail="Proctor event not found.")
+
+    decision = payload.decision.upper()
+    if decision not in ["CONFIRM", "DISMISS"]:
+        raise HTTPException(status_code=400, detail="Decision must be 'CONFIRM' or 'DISMISS'.")
+
+    prev_status = event.review_status
+    event.review_status = "CONFIRMED" if decision == "CONFIRM" else "DISMISSED"
+    event.reviewed_by = current_user.id
+    event.reviewed_at = datetime.now(timezone.utc)
+    event.examiner_notes = payload.notes
+
+    session = event.session
+    if session:
+        # If transitioning to CONFIRMED for first time, add to confirmed score
+        if decision == "CONFIRM" and prev_status != "CONFIRMED":
+            session.confirmed_suspicion_score = min(
+                100.0, (session.confirmed_suspicion_score or 0.0) + event.suspicion_increment
+            )
+            session.suspicion_score = session.confirmed_suspicion_score
+        # If transitioning from CONFIRMED to DISMISSED, subtract
+        elif decision == "DISMISS" and prev_status == "CONFIRMED":
+            session.confirmed_suspicion_score = max(
+                0.0, (session.confirmed_suspicion_score or 0.0) - event.suspicion_increment
+            )
+            session.suspicion_score = session.confirmed_suspicion_score
+
+    db.commit()
+
+    return {
+        "event_id": event.id,
+        "review_status": event.review_status,
+        "reviewed_by": current_user.id,
+        "reviewed_at": event.reviewed_at.isoformat() if event.reviewed_at else None,
+        "examiner_notes": event.examiner_notes,
+        "confirmed_suspicion_score": session.confirmed_suspicion_score if session else 0.0,
+        "message": f"Incident successfully {event.review_status.lower()}."
+    }
+
 

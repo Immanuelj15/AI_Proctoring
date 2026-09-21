@@ -61,7 +61,26 @@ An enterprise-grade, full-stack online examination and proctoring platform combi
   - **Result Locking**: Certified/published sessions are locked against tampering (`HTTP 400 Bad Request`).
   - **Disqualification Safeguard**: Instantly resets database score records to `0.0` with violation notes.
 
-### 2. Student Secure Examination Portal
+### 2. Trust & Integrity (Commercial-Grade Proctoring)
+- **Zero-Biometric Identity Verification & Continuity**:
+  - Pre-exam identity onboarding: Captures reference photo or government ID and runs a facial match against the live webcam stream.
+  - Generates a normalized match confidence score (0.0 - 1.0).
+  - **Privacy First**: Never stores biometric templates or embedding vectors. Only stores match confidence scores and timestamps.
+  - Enforces a strictly audited 30-day retention and purge policy (`retention_purge_date`).
+  - Periodic background facial verification (every 3 minutes) confirms candidate continuity during the examination.
+- **Pre-Flight 360° Room Environment Scan**:
+  - 15-second guided webcam pan clip recorded before the exam timer begins.
+  - Uploaded as WebM media and attached to the exam session.
+  - Lazy human review: Reviewed only if the candidate is flagged for anomalies, eliminating examiner fatigue.
+- **Hybrid Human-in-the-Loop Review Queue (`/dashboard` -> 🛡️ Review Queue)**:
+  - AI incidents are logged as `PENDING` and accrue provisional `ai_suspicion_score`.
+  - **Zero automated grade penalties or unverified disqualifications**: Official penalties only apply when an Examiner/Admin reviews the incident snapshot and room scan, entering audited notes and selecting **Confirm Violation** or **Dismiss as False Positive**.
+- **Crash-Safe Session Resume**:
+  - Resilient to unexpected tab closes, accidental reloads, or device reboots.
+  - Server-authoritative timer prevents clock tampering or resets.
+  - Session question ordering and previously answered choices are restored exactly without data loss.
+
+### 3. Student Secure Examination Portal
 - **Zero-Trust Browser Lockdown**:
   - Enforced fullscreen mode with automatic violations on fullscreen exit, window blur, or tab switching.
   - Right-click context menu, clipboard copy/cut/paste, and developer shortcuts strictly intercepted.

@@ -41,6 +41,23 @@ class ExamSession(Base):
         default=SessionStatus.ACTIVE
     )
     suspicion_score: Mapped[Optional[float]] = mapped_column(nullable=True, default=0.0)
+    ai_suspicion_score: Mapped[Optional[float]] = mapped_column(nullable=True, default=0.0)
+    confirmed_suspicion_score: Mapped[Optional[float]] = mapped_column(nullable=True, default=0.0)
+
+    # Identity Verification & Privacy Policy
+    id_photo_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    identity_verified: Mapped[bool] = mapped_column(default=False, nullable=False)
+    identity_confidence: Mapped[Optional[float]] = mapped_column(nullable=True)
+    last_face_match_confidence: Mapped[Optional[float]] = mapped_column(nullable=True)
+    id_verification_timestamp: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    retention_purge_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # 360° Room Scan Telemetry
+    room_scan_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    room_scan_completed: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    # Crash-Safe Resume: Deterministic Question Sequence (JSON array of question IDs)
+    question_order: Mapped[Optional[str]] = mapped_column(String(2000), nullable=True)
 
 
     # Relationships

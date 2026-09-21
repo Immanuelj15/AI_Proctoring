@@ -284,3 +284,90 @@ export async function submitIntegrityDecision(sessionId: number, payload: { deci
 export function getExamReportPdfUrl(sessionId: string | number): string {
   return `${API_BASE_URL}/exam-sessions/${sessionId}/report.pdf`;
 }
+
+// Phase 1: Trust & Integrity Endpoints
+
+export async function resumeExamSession(sessionId: string | number): Promise<any> {
+  return request<any>(`/exam-sessions/${sessionId}/resume`, {
+    method: "GET",
+  });
+}
+
+export async function verifyIdentity(
+  sessionId: string | number,
+  formData: FormData
+): Promise<{
+  identity_verified: boolean;
+  confidence: number;
+  photo_url: string;
+  retention_purge_date: string;
+  policy: string;
+}> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE_URL}/exam-sessions/${sessionId}/verify-identity`, {
+    method: "POST",
+    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.detail || "Identity verification failed.");
+  }
+  return data;
+}
+
+export async function periodicFaceCheck(
+  sessionId: string | number,
+  formData: FormData
+): Promise<{ match_confidence: number; status: string; threshold: number }> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE_URL}/exam-sessions/${sessionId}/periodic-face-check`, {
+    method: "POST",
+    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.detail || "Periodic face check failed.");
+  }
+  return data;
+}
+
+export async function uploadRoomScan(
+  sessionId: string | number,
+  videoBlob: Blob
+): Promise<{ room_scan_completed: boolean; room_scan_url: string }> {
+  const token = getToken();
+  const formData = new FormData();
+  formData.append("video", videoBlob, "room_scan.webm");
+
+  const res = await fetch(`${API_BASE_URL}/exam-sessions/${sessionId}/room-scan`, {
+    method: "POST",
+    headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    body: formData,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.detail || "Failed to upload room scan.");
+  }
+  return data;
+}
+
+export async function getReviewQueue(statusFilter: string = "PENDING"): Promise<any[]> {
+  const query = statusFilter ? `?status_filter=${encodeURIComponent(statusFilter)}` : "";
+  return request<any[]>(`/api/v1/proctor/review-queue${query}`, {
+    method: "GET",
+  });
+}
+
+export async function reviewProctorEvent(
+  eventId: string,
+  decision: "CONFIRM" | "DISMISS",
+  notes?: string
+): Promise<any> {
+  return request<any>(`/api/v1/proctor/events/${eventId}/review`, {
+    method: "POST",
+    body: JSON.stringify({ decision, notes }),
+  });
+}
+

@@ -23,6 +23,10 @@ env/
 *.sqlite3
 backend/*.db
 
+# Uploads & Media
+backend/uploads/*
+!backend/uploads/**/.gitkeep
+
 # IDE & OS
 .DS_Store
 .vscode/

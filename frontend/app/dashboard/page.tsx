@@ -6,13 +6,14 @@ import ProtectedRoute from "@/components/common/ProtectedRoute";
 import QuestionBankManager from "@/components/examiner/QuestionBankManager";
 import ExamManager from "@/components/examiner/ExamManager";
 import ExamInstructionsModal from "@/components/exam/ExamInstructionsModal";
+import HybridReviewQueue from "@/components/examiner/HybridReviewQueue";
 import { removeToken } from "@/lib/auth";
 import { listQuestions, listExams, startExamSession, listUsers, approveUser } from "@/lib/api";
 import { User, UserRole } from "@/lib/types";
 
 export default function DashboardPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<"questions" | "exams" | "approvals">("questions");
+  const [activeTab, setActiveTab] = useState<"questions" | "exams" | "approvals" | "review_queue">("questions");
   const [questionCount, setQuestionCount] = useState<number>(0);
   const [examCount, setExamCount] = useState<number>(0);
   const [examsList, setExamsList] = useState<any[]>([]);
@@ -215,6 +216,12 @@ export default function DashboardPage() {
                 >
                   📝 Exam Configurator
                 </button>
+                <button
+                  className={`segment-item ${activeTab === "review_queue" ? "active" : ""}`}
+                  onClick={() => setActiveTab("review_queue")}
+                >
+                  🛡️ Review Queue
+                </button>
                 {isAdmin && (
                   <button
                     className={`segment-item ${activeTab === "approvals" ? "active" : ""}`}
@@ -234,6 +241,7 @@ export default function DashboardPage() {
               <>
                 {activeTab === "questions" && <QuestionBankManager />}
                 {activeTab === "exams" && <ExamManager />}
+                {activeTab === "review_queue" && <HybridReviewQueue />}
                 {activeTab === "approvals" && isAdmin && (
                   <div className="panel-card">
                     <div className="panel-header">

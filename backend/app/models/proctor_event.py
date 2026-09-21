@@ -11,6 +11,7 @@ class ProctorEventType(str, enum.Enum):
     OFF_SCREEN_GAZE = "OFF_SCREEN_GAZE"
     TAB_SWITCH = "TAB_SWITCH"
     FULLSCREEN_EXIT = "FULLSCREEN_EXIT"
+    FACE_MISMATCH = "FACE_MISMATCH"
 
 class ProctorEvent(Base):
     __tablename__ = "proctor_events"
@@ -21,5 +22,11 @@ class ProctorEvent(Base):
     suspicion_increment = Column(Float, default=5.0, nullable=False)
     snapshot_url = Column(String(500), nullable=True)
     timestamp = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False, index=True)
+
+    # Hybrid Review Queue Fields
+    review_status = Column(String(20), default="PENDING", nullable=False, index=True)  # PENDING, CONFIRMED, DISMISSED
+    reviewed_by = Column(ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    reviewed_at = Column(DateTime(timezone=True), nullable=True)
+    examiner_notes = Column(String(500), nullable=True)
 
     session = relationship("ExamSession", back_populates="proctor_events")
