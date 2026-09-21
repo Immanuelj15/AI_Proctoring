@@ -2,12 +2,16 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { getToken, removeToken, setToken } from "@/lib/auth";
 import { loginUser, getCurrentUser } from "@/lib/api";
+import { LivePulse } from "@/components/motion";
 
 export default function Header() {
   const router = useRouter();
+  const pathname = usePathname();
+  const shouldReduceMotion = useReducedMotion();
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [isDemoLoading, setIsDemoLoading] = useState<string | null>(null);
 
@@ -73,6 +77,13 @@ export default function Header() {
     router.push("/login");
   };
 
+  const navItems = [
+    { href: "/", label: "Overview" },
+    { href: "/dashboard", label: "Dashboard" },
+    { href: "/proctor-live", label: "Monitoring" },
+    { href: "/grading", label: "Evaluation" },
+  ];
+
   return (
     <header className="app-header">
       {/* Brand Logo & Telemetry Indicator */}
@@ -80,10 +91,9 @@ export default function Header() {
         <div className="logo-icon">AI</div>
         <div>
           <h1 className="header-title">AI Proctor Examination Platform</h1>
-          <p className="header-subtitle">
-            <span className="pulse-dot pulse-dot-green" style={{ display: "inline-block", marginRight: "4px" }} />
-            Zero-Trust Proctoring Engine Active
-          </p>
+          <div className="header-subtitle" style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+            <LivePulse color="sage" label="Zero-Trust Proctoring Engine Active" />
+          </div>
         </div>
       </Link>
 
@@ -127,20 +137,44 @@ export default function Header() {
         </button>
       </div>
 
-      {/* Navigation Links & User Profile */}
-      <nav className="nav-links">
-        <Link href="/" className="nav-link-item">
-          Overview
-        </Link>
-        <Link href="/dashboard" className="nav-link-item">
-          Dashboard
-        </Link>
-        <Link href="/proctor-live" className="nav-link-item">
-          Monitoring
-        </Link>
-        <Link href="/grading" className="nav-link-item">
-          Evaluation
-        </Link>
+      {/* Navigation Links with Shared Layout Gliding Indicator */}
+      <nav className="nav-links" style={{ position: "relative" }}>
+        {navItems.map((item) => {
+          const isActive = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`nav-link-item ${isActive ? "active" : ""}`}
+              style={{
+                position: "relative",
+                color: isActive ? "#ffffff" : "var(--text-muted)",
+                transition: "color 150ms ease",
+              }}
+            >
+              {/* Shared layout sliding pill */}
+              {isActive && (
+                <motion.span
+                  layoutId="header-active-nav-indicator"
+                  transition={
+                    shouldReduceMotion
+                      ? { duration: 0.001 }
+                      : { type: "spring", stiffness: 450, damping: 35 }
+                  }
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    borderRadius: "8px",
+                    background: "rgba(46, 90, 172, 0.28)",
+                    border: "1px solid rgba(46, 90, 172, 0.55)",
+                    zIndex: -1,
+                  }}
+                />
+              )}
+              {item.label}
+            </Link>
+          );
+        })}
 
         {currentUser ? (
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginLeft: "0.5rem" }}>

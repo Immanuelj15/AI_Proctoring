@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { loginUser } from "@/lib/api";
 import { setToken } from "@/lib/auth";
 
+import { SegmentedTabs, Button } from "@/components/motion";
+
 export default function LoginForm() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<"student" | "examiner" | "admin">("student");
@@ -13,6 +15,18 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  const roleTabs = [
+    { id: "student" as const, label: "Student", icon: "🎓" },
+    { id: "examiner" as const, label: "Examiner", icon: "📝" },
+    { id: "admin" as const, label: "Admin", icon: "🔑" },
+  ];
+
+  const handleRoleChange = (role: "student" | "examiner" | "admin") => {
+    setActiveTab(role);
+    setEmail("");
+    setPassword("");
+  };
 
   const handleQuickFill = (role: "student" | "examiner" | "admin") => {
     setActiveTab(role);
@@ -56,26 +70,14 @@ export default function LoginForm() {
         <p className="card-description">Select your role to access the AI Examination Platform.</p>
       </div>
 
-      {/* Role Selection Tabs */}
-      <div className="tab-group">
-        <button
-          className={`tab-btn ${activeTab === "student" ? "active" : ""}`}
-          onClick={() => { setActiveTab("student"); setEmail(""); setPassword(""); }}
-        >
-          🎓 Student
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "examiner" ? "active" : ""}`}
-          onClick={() => { setActiveTab("examiner"); setEmail(""); setPassword(""); }}
-        >
-          📝 Examiner
-        </button>
-        <button
-          className={`tab-btn ${activeTab === "admin" ? "active" : ""}`}
-          onClick={() => { setActiveTab("admin"); setEmail(""); setPassword(""); }}
-        >
-          🔑 Admin
-        </button>
+      {/* Role Selection Tabs with Shared Layout Sliding Pill */}
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: "1.25rem" }}>
+        <SegmentedTabs<"student" | "examiner" | "admin">
+          tabs={roleTabs}
+          activeId={activeTab}
+          onChange={handleRoleChange}
+          layoutId="login-role-pill"
+        />
       </div>
 
       {/* Quick Fill Bar for Instant Testing */}
@@ -125,13 +127,14 @@ export default function LoginForm() {
           />
         </div>
 
-        <button
+        <Button
           type="submit"
-          className="btn btn-primary"
-          disabled={loading}
+          variant="primary"
+          isLoading={loading}
+          style={{ width: "100%", padding: "0.75rem" }}
         >
-          {loading ? "[ Authenticating... ]" : `Sign In as ${activeTab.toUpperCase()}`}
-        </button>
+          {`Sign In as ${activeTab.toUpperCase()}`}
+        </Button>
       </form>
 
       <div className="card-footer">

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { getReviewQueue, reviewProctorEvent, API_BASE_URL } from "@/lib/api";
+import { SegmentedTabs, StaggerList, StaggerItem, AnimatedModal, Button, LivePulse } from "@/components/motion";
 
 interface ReviewQueueItem {
   id: string;
@@ -68,6 +69,13 @@ export default function HybridReviewQueue() {
 
   const pendingCount = items.filter((i) => i.review_status === "PENDING").length;
 
+  const filterTabs = [
+    { id: "PENDING", label: `Pending ${pendingCount > 0 ? `(${pendingCount})` : ""}`, icon: "⏳" },
+    { id: "CONFIRMED", label: "Confirmed", icon: "⚠️" },
+    { id: "DISMISSED", label: "Dismissed", icon: "✓" },
+    { id: "ALL", label: "All Events" },
+  ];
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
       {/* Header & Filter Controls */}
@@ -86,26 +94,21 @@ export default function HybridReviewQueue() {
           </div>
 
           <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-            {["PENDING", "CONFIRMED", "DISMISSED", "ALL"].map((f) => (
-              <button
-                key={f}
-                type="button"
-                className={`btn ${filter === f ? "btn-primary" : "btn-secondary"}`}
-                style={{ padding: "0.4rem 0.85rem", fontSize: "0.78rem" }}
-                onClick={() => setFilter(f)}
-              >
-                {f === "PENDING" && pendingCount > 0 ? `⏳ Pending (${pendingCount})` : f}
-              </button>
-            ))}
-            <button
+            <SegmentedTabs
+              tabs={filterTabs}
+              activeId={filter}
+              onChange={(id) => setFilter(id)}
+              layoutId="review-queue-filter-pill"
+            />
+            <Button
               type="button"
-              className="btn btn-secondary"
-              style={{ padding: "0.4rem 0.75rem", fontSize: "0.78rem" }}
+              variant="secondary"
+              style={{ padding: "0.45rem 0.85rem", fontSize: "0.78rem" }}
               onClick={loadQueue}
               title="Refresh queue"
             >
               🔄
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -160,15 +163,16 @@ export default function HybridReviewQueue() {
             </p>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
+          <StaggerList style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
             {items.map((item) => {
               const isPending = item.review_status === "PENDING";
               const isConfirmed = item.review_status === "CONFIRMED";
 
               return (
-                <div
-                  key={item.id}
-                  style={{
+                <StaggerItem key={item.id}>
+                  <div
+                    className="interactive-card review-item-card"
+                    style={{
                     padding: "1.25rem",
                     borderRadius: "12px",
                     background: isPending
@@ -336,26 +340,25 @@ export default function HybridReviewQueue() {
                         }
                         style={{ flex: 1, minWidth: "220px", fontSize: "0.8rem", padding: "0.4rem 0.75rem" }}
                       />
-                      <div style={{ display: "flex", gap: "0.5rem" }}>
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          disabled={processingId === item.id}
-                          onClick={() => handleReviewAction(item.id, "CONFIRM")}
-                          style={{ padding: "0.4rem 1rem", fontSize: "0.8rem" }}
-                        >
-                          {processingId === item.id ? "Saving..." : "✓ Confirm Violation"}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-secondary"
-                          disabled={processingId === item.id}
-                          onClick={() => handleReviewAction(item.id, "DISMISS")}
-                          style={{ padding: "0.4rem 1rem", fontSize: "0.8rem" }}
-                        >
-                          ✕ Dismiss False Positive
-                        </button>
-                      </div>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        disabled={processingId === item.id}
+                        isLoading={processingId === item.id}
+                        onClick={() => handleReviewAction(item.id, "CONFIRM")}
+                        style={{ padding: "0.4rem 1rem", fontSize: "0.8rem" }}
+                      >
+                        ✓ Confirm Violation
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={processingId === item.id}
+                        onClick={() => handleReviewAction(item.id, "DISMISS")}
+                        style={{ padding: "0.4rem 1rem", fontSize: "0.8rem" }}
+                      >
+                        ✕ Dismiss False Positive
+                      </Button>
                     </div>
                   ) : (
                     <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -374,31 +377,23 @@ export default function HybridReviewQueue() {
                     </div>
                   )}
                 </div>
+              </StaggerItem>
               );
             })}
-          </div>
+          </StaggerList>
         )}
       </div>
 
-      {/* Media Inspection Modal (Snapshot / Room Scan) */}
-      {activeMediaModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.85)",
-            backdropFilter: "blur(12px)",
-            zIndex: 1100,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "1.5rem",
-          }}
-        >
+      {/* Media Inspection Modal (Snapshot / Room Scan) with AnimatedModal */}
+      <AnimatedModal
+        isOpen={!!activeMediaModal}
+        onClose={() => setActiveMediaModal(null)}
+        maxWidth="680px"
+      >
+        {activeMediaModal && (
           <div
             className="panel-card"
             style={{
-              maxWidth: "680px",
               width: "100%",
               padding: "1.5rem",
               background: "var(--bg-surface-elevated)",
@@ -437,13 +432,13 @@ export default function HybridReviewQueue() {
             </div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "1rem" }}>
-              <button type="button" className="btn btn-secondary" onClick={() => setActiveMediaModal(null)}>
+              <Button type="button" variant="secondary" onClick={() => setActiveMediaModal(null)}>
                 Close Preview
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </AnimatedModal>
     </div>
   );
 }

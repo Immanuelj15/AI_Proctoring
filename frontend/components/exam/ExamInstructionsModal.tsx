@@ -2,6 +2,7 @@
 
 import React from "react";
 import { User } from "@/lib/types";
+import { AnimatedModal, Button } from "@/components/motion";
 
 interface ExamInstructionsModalProps {
   examTitle: string;
@@ -19,20 +20,7 @@ export default function ExamInstructionsModal({
   onCancel,
 }: ExamInstructionsModalProps) {
   return (
-    <div style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: "rgba(3, 7, 18, 0.88)",
-      backdropFilter: "blur(16px)",
-      zIndex: 200,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "1.5rem"
-    }}>
+    <AnimatedModal isOpen={true} onClose={onCancel} maxWidth="580px">
       <div className="auth-card" style={{ maxWidth: "580px", padding: "2.25rem", margin: 0, border: "1px solid var(--border-light)", boxShadow: "0 0 40px rgba(6, 182, 212, 0.15)" }}>
         <div className="card-header" style={{ textAlign: "left", marginBottom: "1.5rem" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
@@ -91,24 +79,24 @@ export default function ExamInstructionsModal({
 
         {/* Action Buttons */}
         <div style={{ display: "flex", gap: "0.85rem" }}>
-          <button
+          <Button
             type="button"
-            className="btn btn-primary"
+            variant="primary"
             style={{ flex: 1, padding: "0.8rem 1.25rem" }}
             onClick={onAgreeAndStart}
           >
             🚀 Agree & Launch Exam
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
-            className="btn btn-ghost"
+            variant="ghost"
             style={{ padding: "0.8rem 1.25rem" }}
             onClick={onCancel}
           >
             Cancel
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </AnimatedModal>
   );
 }

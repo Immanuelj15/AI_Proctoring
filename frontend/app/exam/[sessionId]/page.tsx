@@ -6,6 +6,7 @@ import ImageAnswerUpload from "@/components/exam/ImageAnswerUpload";
 import IdentityVerificationModal from "@/components/exam/IdentityVerificationModal";
 import { useProctoring } from "@/hooks/useProctoring";
 import { API_BASE_URL, resumeExamSession, periodicFaceCheck } from "@/lib/api";
+import { MotionPage, LivePulse, Button, AnimatedModal } from "@/components/motion";
 
 export interface Question {
   id: string;
@@ -400,40 +401,45 @@ export default function SecureExamRoomPage() {
   const flaggedCount = Object.values(flaggedQuestions).filter(Boolean).length;
 
   return (
-    <div style={{ width: "100%", userSelect: "none", height: "calc(100vh - 72px)", display: "flex", flexDirection: "column" }}>
-      {/* Warning & Disqualification Modal */}
-      {warningModalMessage && (
-        <div className="hud-modal-overlay">
-          <div className="hud-modal-content" style={{ textAlign: "center" }}>
-            <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>
-              {isDisqualified ? "🚨" : "⚠️"}
+    <MotionPage style={{ width: "100%", height: "100%" }}>
+      <div style={{ width: "100%", userSelect: "none", height: "calc(100vh - 72px)", display: "flex", flexDirection: "column" }}>
+        {/* Warning & Disqualification Modal with AnimatedModal */}
+        <AnimatedModal
+          isOpen={!!warningModalMessage}
+          onClose={() => { if (!isDisqualified) reEnterFullscreen(); }}
+          maxWidth="480px"
+        >
+          {warningModalMessage && (
+            <div className="hud-modal-content" style={{ textAlign: "center" }}>
+              <div style={{ fontSize: "3rem", marginBottom: "0.75rem" }}>
+                {isDisqualified ? "🚨" : "⚠️"}
+              </div>
+              <h3 style={{ fontSize: "1.3rem", fontWeight: 800, color: isDisqualified ? "#ef4444" : "#f59e0b", marginBottom: "0.5rem" }}>
+                {isDisqualified ? "Session Disqualified" : "Proctoring Integrity Warning"}
+              </h3>
+              <p style={{ fontSize: "0.92rem", color: "var(--text-secondary)", marginBottom: "1.75rem", lineHeight: 1.6 }}>
+                {warningModalMessage}
+              </p>
+              {isDisqualified ? (
+                <Button
+                  variant="danger"
+                  style={{ width: "100%", padding: "0.85rem" }}
+                  onClick={() => router.push(`/results/${sessionId}`)}
+                >
+                  Exit to Results Summary
+                </Button>
+              ) : (
+                <Button
+                  variant="primary"
+                  style={{ width: "100%", padding: "0.85rem" }}
+                  onClick={reEnterFullscreen}
+                >
+                  🔒 Re-Enter Fullscreen & Continue Exam
+                </Button>
+              )}
             </div>
-            <h3 style={{ fontSize: "1.3rem", fontWeight: 800, color: isDisqualified ? "#ef4444" : "#f59e0b", marginBottom: "0.5rem" }}>
-              {isDisqualified ? "Session Disqualified" : "Proctoring Integrity Warning"}
-            </h3>
-            <p style={{ fontSize: "0.92rem", color: "var(--text-secondary)", marginBottom: "1.75rem", lineHeight: 1.6 }}>
-              {warningModalMessage}
-            </p>
-            {isDisqualified ? (
-              <button
-                className="btn-danger"
-                style={{ width: "100%", padding: "0.85rem" }}
-                onClick={() => router.push(`/results/${sessionId}`)}
-              >
-                Exit to Results Summary
-              </button>
-            ) : (
-              <button
-                className="btn-primary"
-                style={{ width: "100%", padding: "0.85rem" }}
-                onClick={reEnterFullscreen}
-              >
-                🔒 Re-Enter Fullscreen & Continue Exam
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+          )}
+        </AnimatedModal>
 
       {/* Top Exam Header Banner */}
       <div style={{
@@ -485,14 +491,15 @@ export default function SecureExamRoomPage() {
             <div style={{ fontSize: "0.85rem", fontWeight: 700, color: "#fff" }}>{candidateInfo.name}</div>
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{candidateInfo.email}</div>
           </div>
-          <button
+          <Button
             onClick={handleSubmitExam}
             disabled={submitting}
-            className="btn-primary"
+            isLoading={submitting}
+            variant="primary"
             style={{ padding: "0.55rem 1.25rem", fontSize: "0.85rem" }}
           >
-            {submitting ? "Submitting..." : "Submit Exam Paper"}
-          </button>
+            Submit Exam Paper
+          </Button>
         </div>
       </div>
 
@@ -851,5 +858,6 @@ export default function SecureExamRoomPage() {
         />
       )}
     </div>
+  </MotionPage>
   );
 }

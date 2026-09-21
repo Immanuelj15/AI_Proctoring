@@ -3,8 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
 import { setToken } from "@/lib/auth";
 import { loginUser, getCurrentUser } from "@/lib/api";
+import { MotionPage, StaggerList, StaggerItem, CountUp, LivePulse, Button } from "@/components/motion";
 
 export default function HomePage() {
   const router = useRouter();
@@ -80,120 +82,153 @@ export default function HomePage() {
   };
 
   return (
-    <div className="dashboard-container" style={{ padding: "2.5rem 1.5rem" }}>
-      {/* Hero Section */}
-      <section className="hud-card" style={{
-        padding: "3.5rem 2.5rem",
-        marginBottom: "2.5rem",
-        background: "linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(10, 14, 23, 0.95) 100%)",
-        border: "1px solid var(--border-light)",
-        position: "relative",
-        overflow: "hidden"
-      }}>
-        {/* Glow ambient background light */}
-        <div style={{
-          position: "absolute",
-          top: "-30%",
-          right: "-10%",
-          width: "500px",
-          height: "500px",
-          background: "radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%)",
-          borderRadius: "50%",
-          pointerEvents: "none"
-        }} />
+    <MotionPage>
+      <div className="dashboard-container" style={{ padding: "2.5rem 1.5rem" }}>
+        {/* Hero Section */}
+        <section className="hud-card" style={{
+          padding: "3.5rem 2.5rem",
+          marginBottom: "2.5rem",
+          background: "linear-gradient(135deg, rgba(15, 23, 42, 0.85) 0%, rgba(10, 14, 23, 0.95) 100%)",
+          border: "1px solid var(--border-light)",
+          position: "relative",
+          overflow: "hidden"
+        }}>
+          {/* Glow ambient background light */}
+          <div style={{
+            position: "absolute",
+            top: "-30%",
+            right: "-10%",
+            width: "500px",
+            height: "500px",
+            background: "radial-gradient(circle, rgba(6, 182, 212, 0.15) 0%, transparent 70%)",
+            borderRadius: "50%",
+            pointerEvents: "none"
+          }} />
 
-        <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "3rem", alignItems: "center" }}>
-          <div>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem" }}>
-              <span className="telemetry-pill pill-ai">
-                <span className="pulse-dot pulse-dot-green" /> Next-Gen AI Examination Platform
-              </span>
-              <span className="telemetry-pill pill-neutral font-mono">v2.4 Enterprise</span>
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 0.8fr", gap: "3rem", alignItems: "center" }}>
+            <div>
+              {/* 1. Staggered Entrance: Live Telemetry Pill */}
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.05 }}
+                style={{ display: "inline-flex", alignItems: "center", gap: "0.5rem", marginBottom: "1.5rem" }}
+              >
+                <span className="telemetry-pill pill-ai">
+                  <LivePulse color="sage" label="Next-Gen AI Examination Platform" />
+                </span>
+                <span className="telemetry-pill pill-neutral font-mono">v2.4 Enterprise</span>
+              </motion.div>
+
+              {/* 2. Staggered Entrance: Main Headline */}
+              <motion.h1
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.28, delay: 0.12 }}
+                style={{
+                  fontSize: "3rem",
+                  fontWeight: 800,
+                  lineHeight: 1.18,
+                  letterSpacing: "-0.03em",
+                  marginBottom: "1.25rem",
+                  color: "#fff"
+                }}
+              >
+                Intelligent Proctoring & <br />
+                <span style={{
+                  background: "linear-gradient(90deg, #38bdf8, #818cf8, #c084fc)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent"
+                }}>
+                  Dual-Track Evaluation
+                </span>
+              </motion.h1>
+
+              {/* 3. Staggered Entrance: Typewriter Dynamic Line */}
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.18 }}
+                style={{
+                  fontSize: "1.15rem",
+                  color: "var(--text-secondary)",
+                  minHeight: "2.2rem",
+                  marginBottom: "2rem",
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "0.4rem"
+                }}
+              >
+                <span style={{ color: "var(--primary-cyan)" }}>&gt;</span>
+                <span>{typedText}</span>
+                <span style={{ animation: "pulseGlow 1s infinite", color: "var(--primary-cyan)" }}>|</span>
+              </motion.div>
+
+              {/* 4. Staggered Entrance: Explanatory Subtext */}
+              <motion.p
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.24 }}
+                style={{ color: "var(--text-muted)", fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "2.5rem", maxWidth: "560px" }}
+              >
+                A full-stack, enterprise-grade online testing ecosystem featuring real-time computer vision proctoring,
+                zero-trust browser lockdown, GPT-4o assisted subjective evaluation, Tesseract OCR handwritten script analysis,
+                and tamper-evident SHA-256 PDF scorecard generation.
+              </motion.p>
+
+              {/* 5. Staggered Entrance: Quick Demo CTA Buttons */}
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, delay: 0.3 }}
+                style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}
+              >
+                <Button
+                  variant="primary"
+                  onClick={() => handleLaunchDemo("student", "/exam/1")}
+                  isLoading={demoLoading === "student"}
+                  style={{ padding: "0.85rem 1.75rem", fontSize: "0.95rem" }}
+                >
+                  🚀 Launch DBMS Exam (Student)
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => handleLaunchDemo("examiner", "/proctor-live")}
+                  isLoading={demoLoading === "examiner"}
+                  style={{ padding: "0.85rem 1.5rem", fontSize: "0.95rem" }}
+                >
+                  👁️ Live Surveillance Matrix
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  onClick={() => handleLaunchDemo("grading", "/grading")}
+                  isLoading={demoLoading === "grading"}
+                  style={{ padding: "0.85rem 1.5rem", fontSize: "0.95rem" }}
+                >
+                  📝 Evaluation Workbench
+                </Button>
+              </motion.div>
             </div>
 
-            <h1 style={{
-              fontSize: "3rem",
-              fontWeight: 800,
-              lineHeight: 1.18,
-              letterSpacing: "-0.03em",
-              marginBottom: "1.25rem",
-              color: "#fff"
-            }}>
-              Intelligent Proctoring & <br />
-              <span style={{
-                background: "linear-gradient(90deg, #38bdf8, #818cf8, #c084fc)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent"
-              }}>
-                Dual-Track Evaluation
-              </span>
-            </h1>
-
-            <div style={{
-              fontSize: "1.15rem",
-              color: "var(--text-secondary)",
-              minHeight: "2.2rem",
-              marginBottom: "2rem",
-              fontWeight: 500,
-              display: "flex",
-              alignItems: "center",
-              gap: "0.4rem"
-            }}>
-              <span style={{ color: "var(--primary-cyan)" }}>&gt;</span>
-              <span>{typedText}</span>
-              <span style={{ animation: "pulseGlow 1s infinite", color: "var(--primary-cyan)" }}>|</span>
-            </div>
-
-            <p style={{ color: "var(--text-muted)", fontSize: "0.95rem", lineHeight: 1.6, marginBottom: "2.5rem", maxWidth: "560px" }}>
-              A full-stack, enterprise-grade online testing ecosystem featuring real-time computer vision proctoring,
-              zero-trust browser lockdown, GPT-4o assisted subjective evaluation, Tesseract OCR handwritten script analysis,
-              and tamper-evident SHA-256 PDF scorecard generation.
-            </p>
-
-            {/* Quick Demo CTA Buttons */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
-              <button
-                onClick={() => handleLaunchDemo("student", "/exam/1")}
-                disabled={!!demoLoading}
-                className="btn-primary"
-                style={{ padding: "0.85rem 1.75rem", fontSize: "0.95rem" }}
-              >
-                {demoLoading === "student" ? "Launching Exam..." : "🚀 Launch DBMS Exam (Student)"}
-              </button>
-
-              <button
-                onClick={() => handleLaunchDemo("examiner", "/proctor-live")}
-                disabled={!!demoLoading}
-                className="btn-ghost"
-                style={{ padding: "0.85rem 1.5rem", fontSize: "0.95rem", borderColor: "var(--border-light)" }}
-              >
-                {demoLoading === "examiner" ? "Opening..." : "👁️ Live Surveillance Matrix"}
-              </button>
-
-              <button
-                onClick={() => handleLaunchDemo("grading", "/grading")}
-                disabled={!!demoLoading}
-                className="btn-ghost"
-                style={{ padding: "0.85rem 1.5rem", fontSize: "0.95rem", borderColor: "var(--border-light)" }}
-              >
-                {demoLoading === "grading" ? "Opening..." : "📝 Evaluation Workbench"}
-              </button>
-            </div>
-          </div>
-
-          {/* Interactive Simulated Biometric HUD Widget */}
-          <div className="hud-card hud-card-glow-cyan" style={{ padding: "1.25rem", background: "rgba(10, 14, 23, 0.9)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-                <span className="pulse-dot pulse-dot-green" />
-                <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#fff", letterSpacing: "0.04em", textTransform: "uppercase" }}>
-                  Biometric Telemetry HUD
+            {/* 6. Staggered Entrance: Interactive Simulated Biometric HUD Widget */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.32, delay: 0.36, ease: "easeOut" }}
+              className="hud-card hud-card-glow-cyan"
+              style={{ padding: "1.25rem", background: "rgba(10, 14, 23, 0.9)" }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.85rem" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <LivePulse color="sage" label="Biometric Telemetry HUD" />
+                </div>
+                <span className="telemetry-pill pill-active font-mono" style={{ fontSize: "0.7rem" }}>
+                  LIVE 30 FPS
                 </span>
               </div>
-              <span className="telemetry-pill pill-active font-mono" style={{ fontSize: "0.7rem" }}>
-                LIVE 30 FPS
-              </span>
-            </div>
 
             {/* Camera Viewport with Biometric Overlays */}
             <div style={{
@@ -299,125 +334,151 @@ export default function HomePage() {
                 <div style={{ fontSize: "0.82rem", fontWeight: 700, color: "#a78bfa" }}>SPEECH SILENT</div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Real-Time Platform Performance Metrics */}
-      <section style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1.25rem", marginBottom: "2.5rem" }}>
-        <div className="hud-card">
-          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>
-            Biometric Accuracy
+      {/* Real-Time Platform Performance Metrics with CountUp */}
+      <StaggerList
+        style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "1.25rem", marginBottom: "2.5rem" }}
+      >
+        <StaggerItem>
+          <div className="hud-card stat-card-static">
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>
+              Biometric Accuracy
+            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: "#38bdf8" }}>
+              <CountUp value={99.8} decimals={1} suffix="%" />
+            </div>
+            <p style={{ fontSize: "0.78rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>Sub-millimeter face landmark mesh detection</p>
           </div>
-          <div style={{ fontSize: "2rem", fontWeight: 800, color: "#38bdf8" }}>99.8%</div>
-          <p style={{ fontSize: "0.78rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>Sub-millimeter face landmark mesh detection</p>
-        </div>
+        </StaggerItem>
 
-        <div className="hud-card">
-          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>
-            Telemetry Latency
+        <StaggerItem>
+          <div className="hud-card stat-card-static">
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>
+              Telemetry Latency
+            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: "#34d399" }}>
+              <CountUp value={35} prefix="< " suffix=" ms" />
+            </div>
+            <p style={{ fontSize: "0.78rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>WebSocket continuous examiner stream</p>
           </div>
-          <div style={{ fontSize: "2rem", fontWeight: 800, color: "#34d399" }}>&lt; 35 ms</div>
-          <p style={{ fontSize: "0.78rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>WebSocket continuous examiner stream</p>
-        </div>
+        </StaggerItem>
 
-        <div className="hud-card">
-          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>
-            Dual-Track Grading
+        <StaggerItem>
+          <div className="hud-card stat-card-static">
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>
+              Dual-Track Grading
+            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: "#c084fc" }}>Deterministic + AI</div>
+            <p style={{ fontSize: "0.78rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>OCR handwritten scripts + GPT-4o scoring</p>
           </div>
-          <div style={{ fontSize: "2rem", fontWeight: 800, color: "#c084fc" }}>Deterministic + AI</div>
-          <p style={{ fontSize: "0.78rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>OCR handwritten scripts + GPT-4o scoring</p>
-        </div>
+        </StaggerItem>
 
-        <div className="hud-card">
-          <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>
-            Integrity Verification
+        <StaggerItem>
+          <div className="hud-card stat-card-static">
+            <div style={{ fontSize: "0.8rem", color: "var(--text-muted)", textTransform: "uppercase", fontWeight: 700, marginBottom: "0.4rem" }}>
+              Integrity Verification
+            </div>
+            <div style={{ fontSize: "2rem", fontWeight: 800, color: "#fbbf24" }}>SHA-256</div>
+            <p style={{ fontSize: "0.78rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>Cryptographically sealed PDF scorecards</p>
           </div>
-          <div style={{ fontSize: "2rem", fontWeight: 800, color: "#fbbf24" }}>SHA-256</div>
-          <p style={{ fontSize: "0.78rem", color: "var(--text-dim)", marginTop: "0.25rem" }}>Cryptographically sealed PDF scorecards</p>
-        </div>
-      </section>
+        </StaggerItem>
+      </StaggerList>
 
-      {/* Comprehensive Feature Grid */}
+      {/* Comprehensive Feature Grid with Interactive Card Hover Lifts */}
       <section style={{ marginBottom: "3rem" }}>
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
           <span className="telemetry-pill pill-ai" style={{ marginBottom: "0.5rem" }}>Core Engine Modules</span>
           <h2 style={{ fontSize: "2rem", fontWeight: 800, color: "#fff" }}>Enterprise Architecture & Capabilities</h2>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem" }}>
+        <StaggerList style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1.5rem" }}>
           {/* Card 1 */}
-          <div className="hud-card hud-card-glow-cyan">
-            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>👁️</div>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
-              Biometric Vision Proctoring
-            </h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
-              Real-time face detection, head-pose estimation (yaw, pitch, roll), gaze aversion tracking, multi-person identification,
-              and device detection alerts streamed continuously to examiner consoles.
-            </p>
-          </div>
+          <StaggerItem>
+            <div className="hud-card hud-card-glow-cyan interactive-card">
+              <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>👁️</div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
+                Biometric Vision Proctoring
+              </h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
+                Real-time face detection, head-pose estimation (yaw, pitch, roll), gaze aversion tracking, multi-person identification,
+                and device detection alerts streamed continuously to examiner consoles.
+              </p>
+            </div>
+          </StaggerItem>
 
           {/* Card 2 */}
-          <div className="hud-card hud-card-glow-violet">
-            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>🔒</div>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
-              Zero-Trust Browser Lockout
-            </h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
-              Enforced fullscreen lockdown, clipboard neutralization (copy/paste/cut disabled), right-click context menu blocking,
-              and strike accumulation with remote examiner force-disqualification.
-            </p>
-          </div>
+          <StaggerItem>
+            <div className="hud-card hud-card-glow-violet interactive-card">
+              <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>🔒</div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
+                Zero-Trust Browser Lockout
+              </h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
+                Enforced fullscreen lockdown, clipboard neutralization (copy/paste/cut disabled), right-click context menu blocking,
+                and strike accumulation with remote examiner force-disqualification.
+              </p>
+            </div>
+          </StaggerItem>
 
           {/* Card 3 */}
-          <div className="hud-card hud-card-glow-rose">
-            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>🤖</div>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
-              Dual-Track AI & OCR Grading
-            </h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
-              Automatic instantaneous evaluation for objective MCQ/MSQ, Tesseract OCR transcription of handwritten calculations and diagrams,
-              combined with GPT-4o subjective semantic scoring.
-            </p>
-          </div>
+          <StaggerItem>
+            <div className="hud-card hud-card-glow-rose interactive-card">
+              <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>🤖</div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
+                Dual-Track AI & OCR Grading
+              </h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
+                Automatic instantaneous evaluation for objective MCQ/MSQ, Tesseract OCR transcription of handwritten calculations and diagrams,
+                combined with GPT-4o subjective semantic scoring.
+              </p>
+            </div>
+          </StaggerItem>
 
           {/* Card 4 */}
-          <div className="hud-card">
-            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>📡</div>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
-              Examiner Live Surveillance Wall
-            </h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
-              Multi-candidate grid monitor with instant live telemetry badges, chronological violation event ticker,
-              and 1-click candidate intervention (warning modal push or remote disqualification).
-            </p>
-          </div>
+          <StaggerItem>
+            <div className="hud-card interactive-card">
+              <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>📡</div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
+                Examiner Live Surveillance Wall
+              </h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
+                Multi-candidate grid monitor with instant live telemetry badges, chronological violation event ticker,
+                and 1-click candidate intervention (warning modal push or remote disqualification).
+              </p>
+            </div>
+          </StaggerItem>
 
           {/* Card 5 */}
-          <div className="hud-card">
-            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>📑</div>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
-              Examiner Review Workbench
-            </h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
-              Side-by-side answer audit interface comparing student response, model answer, AI breakdown, and OCR output.
-              Examiners can adjust marks, enter feedback notes, and issue final publishing decisions.
-            </p>
-          </div>
+          <StaggerItem>
+            <div className="hud-card interactive-card">
+              <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>📑</div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
+                Examiner Review Workbench
+              </h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
+                Side-by-side answer audit interface comparing student response, model answer, AI breakdown, and OCR output.
+                Examiners can adjust marks, enter feedback notes, and issue final publishing decisions.
+              </p>
+            </div>
+          </StaggerItem>
 
           {/* Card 6 */}
-          <div className="hud-card">
-            <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>🛡️</div>
-            <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
-              Tamper-Evident PDF Scorecards
-            </h3>
-            <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
-              Institutional scorecards generated on demand via ReportLab, embedded with SHA-256 digital verification hashes,
-              integrity status badges, question-by-question marks, and examiner signatures.
-            </p>
-          </div>
-        </div>
+          <StaggerItem>
+            <div className="hud-card interactive-card">
+              <div style={{ fontSize: "2rem", marginBottom: "1rem" }}>🛡️</div>
+              <h3 style={{ fontSize: "1.2rem", fontWeight: 700, color: "#fff", marginBottom: "0.5rem" }}>
+                Tamper-Evident PDF Scorecards
+              </h3>
+              <p style={{ color: "var(--text-muted)", fontSize: "0.88rem", lineHeight: 1.6 }}>
+                Institutional scorecards generated on demand via ReportLab, embedded with SHA-256 digital verification hashes,
+                integrity status badges, question-by-question marks, and examiner signatures.
+              </p>
+            </div>
+          </StaggerItem>
+        </StaggerList>
       </section>
 
       {/* End-to-End Workflow Flowchart Banner */}
@@ -458,5 +519,7 @@ export default function HomePage() {
         </div>
       </section>
     </div>
+  </MotionPage>
   );
 }
+

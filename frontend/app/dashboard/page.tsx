@@ -10,6 +10,7 @@ import HybridReviewQueue from "@/components/examiner/HybridReviewQueue";
 import { removeToken } from "@/lib/auth";
 import { listQuestions, listExams, startExamSession, listUsers, approveUser } from "@/lib/api";
 import { User, UserRole } from "@/lib/types";
+import { MotionPage, StaggerList, StaggerItem, CountUp, SegmentedTabs, Button } from "@/components/motion";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -122,119 +123,115 @@ export default function DashboardPage() {
           phone_number: user.phone_number || "+1 (555) 019-2831"
         };
 
+        const segmentTabs = [
+          { id: "questions" as const, label: "Question Bank", icon: "📚" },
+          { id: "exams" as const, label: "Exam Configurator", icon: "📝" },
+          { id: "review_queue" as const, label: "Review Queue", icon: "🛡️" },
+          ...(isAdmin ? [{ id: "approvals" as const, label: "User Approvals", icon: "👥" }] : []),
+        ];
+
         return (
-          <div className="dashboard-container">
-            {/* Pre-Exam Instructions Modal */}
-            {selectedExamForModal && (
-              <ExamInstructionsModal
-                examTitle={selectedExamForModal.title}
-                durationMinutes={selectedExamForModal.duration_minutes || selectedExamForModal.duration || 30}
-                candidate={candidateUser}
-                onAgreeAndStart={handleLaunchFullscreenExam}
-                onCancel={() => setSelectedExamForModal(null)}
-              />
-            )}
+          <MotionPage>
+            <div className="dashboard-container">
+              {/* Pre-Exam Instructions Modal */}
+              {selectedExamForModal && (
+                <ExamInstructionsModal
+                  examTitle={selectedExamForModal.title}
+                  durationMinutes={selectedExamForModal.duration_minutes || selectedExamForModal.duration || 30}
+                  candidate={candidateUser}
+                  onAgreeAndStart={handleLaunchFullscreenExam}
+                  onCancel={() => setSelectedExamForModal(null)}
+                />
+              )}
 
-            {/* Dashboard Hero Banner */}
-            <div className="dashboard-hero">
-              <div>
-                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-                  <div style={{
-                    width: "42px",
-                    height: "42px",
-                    background: "rgba(255, 255, 255, 0.15)",
-                    borderRadius: "50%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "1.2rem"
-                  }}>
-                    👤
+              {/* Dashboard Hero Banner */}
+              <div className="dashboard-hero">
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                    <div style={{
+                      width: "42px",
+                      height: "42px",
+                      background: "rgba(255, 255, 255, 0.15)",
+                      borderRadius: "50%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "1.2rem"
+                    }}>
+                      👤
+                    </div>
+                    <div>
+                      <h2 className="hero-title">Welcome, {user.name} 👋</h2>
+                      <p className="hero-email">Signed in as {user.email} | Role: {user.role.toUpperCase()}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h2 className="hero-title">Welcome, {user.name} 👋</h2>
-                    <p className="hero-email">Signed in as {user.email} | Role: {user.role.toUpperCase()}</p>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "1rem", zIndex: 2 }}>
+                  <span className={getBadgeClass(user.role)}>{user.role}</span>
+                  <Button onClick={handleLogout} variant="danger" style={{ padding: "0.55rem 1.25rem" }}>
+                    Logout Session
+                  </Button>
+                </div>
+              </div>
+
+              {/* Metric Stats Cards Grid with Staggered Entrance & CountUp */}
+              <StaggerList className="stats-grid">
+                <StaggerItem>
+                  <div className="metric-card stat-card-static">
+                    <div className="metric-icon" style={{ background: "rgba(6, 182, 212, 0.15)", color: "#38bdf8" }}>📚</div>
+                    <div>
+                      <div className="metric-value"><CountUp value={questionCount} /></div>
+                      <div className="metric-label">Question Bank Items</div>
+                    </div>
                   </div>
-                </div>
-              </div>
+                </StaggerItem>
 
-              <div style={{ display: "flex", alignItems: "center", gap: "1rem", zIndex: 2 }}>
-                <span className={getBadgeClass(user.role)}>{user.role}</span>
-                <button onClick={handleLogout} className="btn btn-danger" style={{ padding: "0.55rem 1.25rem" }}>
-                  Logout Session
-                </button>
-              </div>
-            </div>
+                <StaggerItem>
+                  <div className="metric-card stat-card-static">
+                    <div className="metric-icon" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399" }}>📝</div>
+                    <div>
+                      <div className="metric-value"><CountUp value={examCount} /></div>
+                      <div className="metric-label">Configured Exams</div>
+                    </div>
+                  </div>
+                </StaggerItem>
 
-            {/* Metric Stats Cards Grid */}
-            <div className="stats-grid">
-              <div className="metric-card">
-                <div className="metric-icon" style={{ background: "rgba(6, 182, 212, 0.15)", color: "#38bdf8" }}>📚</div>
-                <div>
-                  <div className="metric-value">{questionCount}</div>
-                  <div className="metric-label">Question Bank Items</div>
-                </div>
-              </div>
+                <StaggerItem>
+                  <div className="metric-card stat-card-static">
+                    <div className="metric-icon" style={{ background: "rgba(139, 92, 246, 0.15)", color: "#c084fc" }}>🎓</div>
+                    <div>
+                      <div className="metric-value">Active</div>
+                      <div className="metric-label">System Status</div>
+                    </div>
+                  </div>
+                </StaggerItem>
 
-              <div className="metric-card">
-                <div className="metric-icon" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399" }}>📝</div>
-                <div>
-                  <div className="metric-value">{examCount}</div>
-                  <div className="metric-label">Configured Exams</div>
-                </div>
-              </div>
+                <StaggerItem>
+                  <div className="metric-card stat-card-static">
+                    <div className="metric-icon" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24" }}>🛡️</div>
+                    <div>
+                      <div className="metric-value" style={{ fontSize: "1.1rem", color: "#fbbf24" }}>MediaPipe</div>
+                      <div className="metric-label">AI Proctor Engine</div>
+                    </div>
+                  </div>
+                </StaggerItem>
+              </StaggerList>
 
-              <div className="metric-card">
-                <div className="metric-icon" style={{ background: "rgba(139, 92, 246, 0.15)", color: "#c084fc" }}>🎓</div>
-                <div>
-                  <div className="metric-value">Active</div>
-                  <div className="metric-label">System Status</div>
-                </div>
-              </div>
-
-              <div className="metric-card">
-                <div className="metric-icon" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24" }}>🛡️</div>
-                <div>
-                  <div className="metric-value" style={{ fontSize: "1.1rem", color: "#fbbf24" }}>MediaPipe</div>
-                  <div className="metric-label">AI Proctor Engine</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Segment Control Pill Bar for Examiners & Admins */}
-            {isExaminerOrAdmin && (
-              <div className="segment-bar">
-                <button
-                  className={`segment-item ${activeTab === "questions" ? "active" : ""}`}
-                  onClick={() => setActiveTab("questions")}
-                >
-                  📚 Question Bank Manager
-                </button>
-                <button
-                  className={`segment-item ${activeTab === "exams" ? "active" : ""}`}
-                  onClick={() => setActiveTab("exams")}
-                >
-                  📝 Exam Configurator
-                </button>
-                <button
-                  className={`segment-item ${activeTab === "review_queue" ? "active" : ""}`}
-                  onClick={() => setActiveTab("review_queue")}
-                >
-                  🛡️ Review Queue
-                </button>
-                {isAdmin && (
-                  <button
-                    className={`segment-item ${activeTab === "approvals" ? "active" : ""}`}
-                    onClick={() => {
-                      setActiveTab("approvals");
-                      loadAllUsers();
+              {/* Segment Control Sliding Pill Bar for Examiners & Admins */}
+              {isExaminerOrAdmin && (
+                <div style={{ marginBottom: "1.5rem" }}>
+                  <SegmentedTabs<"questions" | "exams" | "review_queue" | "approvals">
+                    tabs={segmentTabs}
+                    activeId={activeTab}
+                    onChange={(id) => {
+                      setActiveTab(id);
+                      if (id === "approvals") loadAllUsers();
                     }}
-                  >
-                    👥 User Approval Management
-                  </button>
-                )}
-              </div>
-            )}
+                    layoutId="dashboard-segment-pill"
+                  />
+                </div>
+              )}
 
             {/* Main Panel View */}
             {isExaminerOrAdmin ? (
@@ -325,46 +322,54 @@ export default function DashboardPage() {
                     <p style={{ color: "var(--text-muted)", fontSize: "0.9rem" }}>No exams configured yet by Examiners.</p>
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
+                  <StaggerList style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem" }}>
                     {examsList.map((ex) => (
-                      <div key={ex.id} style={{
-                        padding: "1.5rem",
-                        background: "rgba(15, 23, 42, 0.65)",
-                        border: "1px solid var(--border-subtle)",
-                        borderRadius: "14px",
-                        display: "flex",
-                        flexDirection: "column",
-                        justifyContent: "space-between",
-                        gap: "1.25rem",
-                        backdropFilter: "blur(12px)",
-                        boxShadow: "var(--shadow-sm)"
-                      }}>
-                        <div>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                            <span className="badge badge-examiner">{ex.subject || "General"}</span>
-                            <span className="badge badge-student">⏱ {ex.duration_minutes || ex.duration || 30} Mins</span>
-                          </div>
-                          <h4 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#fff" }}>{ex.title}</h4>
-                          <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.3rem" }}>
-                            Total Questions: <strong style={{ color: "var(--primary-cyan)" }}>{ex.question_count || ex.questions || 5}</strong> | Fullscreen Lock & MediaPipe Enabled
-                          </p>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          disabled={startingSession}
-                          onClick={() => setSelectedExamForModal(ex)}
+                      <StaggerItem key={ex.id}>
+                        <div
+                          className="interactive-card exam-action-card"
+                          style={{
+                            padding: "1.5rem",
+                            background: "rgba(15, 23, 42, 0.65)",
+                            border: "1px solid var(--border-subtle)",
+                            borderRadius: "14px",
+                            display: "flex",
+                            flexDirection: "column",
+                            justifyContent: "space-between",
+                            gap: "1.25rem",
+                            backdropFilter: "blur(12px)",
+                            boxShadow: "var(--shadow-sm)",
+                            height: "100%",
+                          }}
                         >
-                          {startingSession ? "Starting Session..." : "Start Proctored Exam →"}
-                        </button>
-                      </div>
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                              <span className="badge badge-examiner">{ex.subject || "General"}</span>
+                              <span className="badge badge-student">⏱ {ex.duration_minutes || ex.duration || 30} Mins</span>
+                            </div>
+                            <h4 style={{ fontSize: "1.1rem", fontWeight: 800, color: "#fff" }}>{ex.title}</h4>
+                            <p style={{ fontSize: "0.82rem", color: "var(--text-muted)", marginTop: "0.3rem" }}>
+                              Total Questions: <strong style={{ color: "var(--primary-cyan)" }}>{ex.question_count || ex.questions || 5}</strong> | Fullscreen Lock & MediaPipe Enabled
+                            </p>
+                          </div>
+
+                          <Button
+                            type="button"
+                            variant="primary"
+                            disabled={startingSession}
+                            isLoading={startingSession}
+                            onClick={() => setSelectedExamForModal(ex)}
+                          >
+                            Start Proctored Exam →
+                          </Button>
+                        </div>
+                      </StaggerItem>
                     ))}
-                  </div>
+                  </StaggerList>
                 )}
               </div>
             )}
-          </div>
+            </div>
+          </MotionPage>
         );
       }}
     </ProtectedRoute>
