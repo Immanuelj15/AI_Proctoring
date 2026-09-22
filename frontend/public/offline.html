@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offline | AI Proctor Examination Platform</title>
+  <link rel="icon" href="/icons/icon-192.png">
+  <style>
+    :root {
+      --color-navy: #12172B;
+      --color-paper: #F5F6F8;
+      --color-signal-blue: #2E5AAC;
+      --color-signal-blue-hover: #24488A;
+      --color-coral: #C4483C;
+      --color-border: rgba(18, 23, 43, 0.12);
+      --color-text-muted: #535C79;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--color-paper);
+      color: var(--color-navy);
+      font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      text-align: center;
+    }
+
+    .offline-card {
+      background: #FFFFFF;
+      border: 1px solid var(--color-border);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      max-width: 480px;
+      width: 100%;
+      box-shadow: 0 4px 24px rgba(18, 23, 43, 0.06);
+    }
+
+    .offline-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(196, 72, 60, 0.1);
+      color: var(--color-coral);
+      padding: 0.35rem 0.85rem;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(196, 72, 60, 0.2);
+    }
+
+    .pulse-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--color-coral);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      line-height: 1.3;
+      margin-bottom: 0.75rem;
+      color: var(--color-navy);
+    }
+
+    p {
+      color: var(--color-text-muted);
+      font-size: 0.92rem;
+      line-height: 1.6;
+      margin-bottom: 1.75rem;
+    }
+
+    .notice-box {
+      background: rgba(18, 23, 43, 0.03);
+      border: 1px solid var(--color-border);
+      border-radius: 10px;
+      padding: 0.85rem 1rem;
+      font-size: 0.8rem;
+      color: var(--color-text-muted);
+      margin-bottom: 1.75rem;
+      text-align: left;
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .btn-retry {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      background: var(--color-signal-blue);
+      color: #FFFFFF;
+      border: none;
+      border-radius: 8px;
+      padding: 0.75rem 1.75rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 160ms ease, transform 100ms ease;
+      width: 100%;
+    }
+
+    .btn-retry:hover {
+      background: var(--color-signal-blue-hover);
+    }
+
+    .btn-retry:active {
+      transform: scale(0.98);
+    }
+
+    .footer-brand {
+      margin-top: 2rem;
+      font-size: 0.75rem;
+      color: var(--color-text-muted);
+      letter-spacing: 0.03em;
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-card">
+    <div class="offline-badge">
+      <span class="pulse-indicator"></span>
+      Network Connection Disrupted
+    </div>
+
+    <h1>You are currently offline</h1>
+    <p>
+      The platform lost connection to the assessment server. Live exam proctoring, telemetry streams, and answers require an active, stable internet connection.
+    </p>
+
+    <div class="notice-box">
+      <div>STATUS: OFFLINE</div>
+      <div>TELEMETRY: PAUSED</div>
+      <div>DATA INTEGRITY: PROTECTED</div>
+    </div>
+
+    <button class="btn-retry" onclick="checkConnection()">
+      🔄 Recheck Connection
+    </button>
+  </div>
+
+  <div class="footer-brand">
+    AI Proctor Examination Platform &bull; Zero-Trust Proctoring
+  </div>
+
+  <script>
+    function checkConnection() {
+      if (navigator.onLine) {
+        window.location.reload();
+      } else {
+        const btn = document.querySelector('.btn-retry');
+        btn.textContent = 'Still Offline. Retrying in 3s...';
+        btn.style.opacity = '0.7';
+        setTimeout(() => {
+          btn.textContent = '🔄 Recheck Connection';
+          btn.style.opacity = '1';
+        }, 3000);
+      }
+    }
+
+    window.addEventListener('online', () => {
+      window.location.reload();
+    });
+  </script>
+</body>
+</html>

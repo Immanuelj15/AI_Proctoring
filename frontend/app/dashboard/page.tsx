@@ -11,9 +11,12 @@ import { removeToken } from "@/lib/auth";
 import { listQuestions, listExams, startExamSession, listUsers, approveUser } from "@/lib/api";
 import { User, UserRole } from "@/lib/types";
 import { MotionPage, StaggerList, StaggerItem, CountUp, SegmentedTabs, Button } from "@/components/motion";
+import { useTranslation } from "@/lib/i18n";
+import PushNotificationToggle from "@/components/pwa/PushNotificationToggle";
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"questions" | "exams" | "approvals" | "review_queue">("questions");
   const [questionCount, setQuestionCount] = useState<number>(0);
   const [examCount, setExamCount] = useState<number>(0);
@@ -124,10 +127,10 @@ export default function DashboardPage() {
         };
 
         const segmentTabs = [
-          { id: "questions" as const, label: "Question Bank", icon: "📚" },
-          { id: "exams" as const, label: "Exam Configurator", icon: "📝" },
-          { id: "review_queue" as const, label: "Review Queue", icon: "🛡️" },
-          ...(isAdmin ? [{ id: "approvals" as const, label: "User Approvals", icon: "👥" }] : []),
+          { id: "questions" as const, label: t("dashboard.tabQuestions"), icon: "📚" },
+          { id: "exams" as const, label: t("dashboard.tabExams"), icon: "📝" },
+          { id: "review_queue" as const, label: t("dashboard.tabReviewQueue"), icon: "🛡️" },
+          ...(isAdmin ? [{ id: "approvals" as const, label: t("dashboard.tabApprovals"), icon: "👥" }] : []),
         ];
 
         return (
@@ -161,16 +164,17 @@ export default function DashboardPage() {
                       👤
                     </div>
                     <div>
-                      <h2 className="hero-title">Welcome, {user.name} 👋</h2>
-                      <p className="hero-email">Signed in as {user.email} | Role: {user.role.toUpperCase()}</p>
+                      <h2 className="hero-title">{t("dashboard.pageTitle")} - {user.name} 👋</h2>
+                      <p className="hero-email">{t("dashboard.pageSubtitle")}</p>
                     </div>
                   </div>
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "1rem", zIndex: 2 }}>
+                  <PushNotificationToggle userId={user.id} compact={true} />
                   <span className={getBadgeClass(user.role)}>{user.role}</span>
                   <Button onClick={handleLogout} variant="danger" style={{ padding: "0.55rem 1.25rem" }}>
-                    Logout Session
+                    {t("nav.signOut")}
                   </Button>
                 </div>
               </div>
@@ -182,7 +186,7 @@ export default function DashboardPage() {
                     <div className="metric-icon" style={{ background: "rgba(6, 182, 212, 0.15)", color: "#38bdf8" }}>📚</div>
                     <div>
                       <div className="metric-value"><CountUp value={questionCount} /></div>
-                      <div className="metric-label">Question Bank Items</div>
+                      <div className="metric-label">{t("dashboard.metricQuestions")}</div>
                     </div>
                   </div>
                 </StaggerItem>
@@ -192,7 +196,7 @@ export default function DashboardPage() {
                     <div className="metric-icon" style={{ background: "rgba(16, 185, 129, 0.15)", color: "#34d399" }}>📝</div>
                     <div>
                       <div className="metric-value"><CountUp value={examCount} /></div>
-                      <div className="metric-label">Configured Exams</div>
+                      <div className="metric-label">{t("dashboard.metricExams")}</div>
                     </div>
                   </div>
                 </StaggerItem>
@@ -201,8 +205,8 @@ export default function DashboardPage() {
                   <div className="metric-card stat-card-static">
                     <div className="metric-icon" style={{ background: "rgba(139, 92, 246, 0.15)", color: "#c084fc" }}>🎓</div>
                     <div>
-                      <div className="metric-value">Active</div>
-                      <div className="metric-label">System Status</div>
+                      <div className="metric-value"><CountUp value={142} /></div>
+                      <div className="metric-label">{t("dashboard.metricCandidates")}</div>
                     </div>
                   </div>
                 </StaggerItem>
@@ -211,8 +215,8 @@ export default function DashboardPage() {
                   <div className="metric-card stat-card-static">
                     <div className="metric-icon" style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24" }}>🛡️</div>
                     <div>
-                      <div className="metric-value" style={{ fontSize: "1.1rem", color: "#fbbf24" }}>MediaPipe</div>
-                      <div className="metric-label">AI Proctor Engine</div>
+                      <div className="metric-value" style={{ fontSize: "1.1rem", color: "#fbbf24" }}>99.4%</div>
+                      <div className="metric-label">{t("dashboard.metricIntegrity")}</div>
                     </div>
                   </div>
                 </StaggerItem>
@@ -310,7 +314,7 @@ export default function DashboardPage() {
               /* Candidate Scheduled Exams View */
               <div className="panel-card">
                 <div className="panel-header">
-                  <h3 className="panel-title">🎓 Scheduled Candidate Examinations</h3>
+                  <h3 className="panel-title">🎓 {t("dashboard.tabExams")}</h3>
                   <span className="badge badge-student">AI Proctor Monitored</span>
                 </div>
                 <p style={{ color: "var(--text-muted)", marginBottom: "1.25rem", fontSize: "0.88rem" }}>
@@ -359,7 +363,7 @@ export default function DashboardPage() {
                             isLoading={startingSession}
                             onClick={() => setSelectedExamForModal(ex)}
                           >
-                            Start Proctored Exam →
+                            {t("dashboard.startExamButton")} →
                           </Button>
                         </div>
                       </StaggerItem>

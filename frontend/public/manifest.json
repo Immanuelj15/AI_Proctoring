@@ -1,0 +1,55 @@
+{
+  "name": "AI Proctor Examination Platform",
+  "short_name": "AI Proctor",
+  "description": "Enterprise AI-proctored examination platform with real-time biometric verification and zero-trust assessment.",
+  "start_url": "/",
+  "id": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "background_color": "#F5F6F8",
+  "theme_color": "#12172B",
+  "orientation": "any",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/badge-72.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "badge"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Candidate Exam",
+      "short_name": "Exam",
+      "description": "Enter the secure exam room",
+      "url": "/exam/1",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Examiner Hub",
+      "short_name": "Grading",
+      "description": "Open examiner evaluation workbench",
+      "url": "/grading",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

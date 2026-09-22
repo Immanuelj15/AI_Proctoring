@@ -7,11 +7,15 @@ import { motion, useReducedMotion } from "framer-motion";
 import { getToken, removeToken, setToken } from "@/lib/auth";
 import { loginUser, getCurrentUser } from "@/lib/api";
 import { LivePulse } from "@/components/motion";
+import { useTranslation } from "@/lib/i18n";
+import LanguageSwitcher from "@/components/i18n/LanguageSwitcher";
+import PushNotificationToggle from "@/components/pwa/PushNotificationToggle";
 
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
   const shouldReduceMotion = useReducedMotion();
+  const { t } = useTranslation();
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [isDemoLoading, setIsDemoLoading] = useState<string | null>(null);
 
@@ -78,10 +82,10 @@ export default function Header() {
   };
 
   const navItems = [
-    { href: "/", label: "Overview" },
-    { href: "/dashboard", label: "Dashboard" },
-    { href: "/proctor-live", label: "Monitoring" },
-    { href: "/grading", label: "Evaluation" },
+    { href: "/", label: t("nav.overview") },
+    { href: "/dashboard", label: t("nav.dashboard") },
+    { href: "/proctor-live", label: t("nav.monitoring") },
+    { href: "/grading", label: t("nav.evaluation") },
   ];
 
   return (
@@ -90,9 +94,9 @@ export default function Header() {
       <Link href="/" className="header-brand">
         <div className="logo-icon">AI</div>
         <div>
-          <h1 className="header-title">AI Proctor Examination Platform</h1>
+          <h1 className="header-title">{t("brand.title")}</h1>
           <div className="header-subtitle" style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
-            <LivePulse color="sage" label="Zero-Trust Proctoring Engine Active" />
+            <LivePulse color="sage" label={t("brand.tagline")} />
           </div>
         </div>
       </Link>
@@ -100,7 +104,7 @@ export default function Header() {
       {/* Instant Demo Switcher Bar */}
       <div className="demo-quick-bar">
         <span style={{ fontSize: "0.7rem", color: "var(--text-dim)", textTransform: "uppercase", fontWeight: 700, paddingLeft: "0.4rem" }}>
-          Instant Demo:
+          {t("nav.demoTitle")}
         </span>
         <button
           onClick={() => handleQuickDemoLogin("student", "/exam/1")}
@@ -108,7 +112,7 @@ export default function Header() {
           className="demo-pill-btn demo-pill-student"
           title="Instantly launch candidate room with DBMS Exam"
         >
-          {isDemoLoading === "student" ? "Connecting..." : "⚡ Student Exam"}
+          {isDemoLoading === "student" ? "Connecting..." : t("nav.demoStudent")}
         </button>
         <button
           onClick={() => handleQuickDemoLogin("examiner", "/proctor-live")}
@@ -116,7 +120,7 @@ export default function Header() {
           className="demo-pill-btn demo-pill-examiner"
           title="Open real-time candidate video wall & telemetry"
         >
-          {isDemoLoading === "examiner" ? "Connecting..." : "👁️ Live Surveillance"}
+          {isDemoLoading === "examiner" ? "Connecting..." : t("nav.demoSurveillance")}
         </button>
         <button
           onClick={() => handleQuickDemoLogin("examiner", "/grading")}
@@ -124,7 +128,7 @@ export default function Header() {
           className="demo-pill-btn demo-pill-grading"
           title="Open examiner dual-track evaluation workbench"
         >
-          {isDemoLoading === "examiner" ? "Connecting..." : "📝 Grading Hub"}
+          {isDemoLoading === "examiner" ? "Connecting..." : t("nav.demoGrading")}
         </button>
         <button
           onClick={() => handleQuickDemoLogin("admin", "/dashboard")}
@@ -133,12 +137,12 @@ export default function Header() {
           style={{ color: "#38bdf8" }}
           title="Open admin console for question bank and approvals"
         >
-          {isDemoLoading === "admin" ? "Connecting..." : "⚙️ Admin"}
+          {isDemoLoading === "admin" ? "Connecting..." : t("nav.demoAdmin")}
         </button>
       </div>
 
-      {/* Navigation Links with Shared Layout Gliding Indicator */}
-      <nav className="nav-links" style={{ position: "relative" }}>
+      {/* Navigation Links with Shared Layout Gliding Indicator & Utilities */}
+      <nav className="nav-links" style={{ position: "relative", display: "flex", alignItems: "center", gap: "0.5rem" }}>
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           return (
@@ -176,6 +180,12 @@ export default function Header() {
           );
         })}
 
+        {/* Multilingual Switcher Dropdown */}
+        <LanguageSwitcher variant="dropdown" />
+
+        {/* PWA Push Notification Reminder Toggle (Compact) */}
+        <PushNotificationToggle userId={currentUser?.id} compact={true} />
+
         {currentUser ? (
           <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginLeft: "0.5rem" }}>
             <div style={{ textAlign: "right" }}>
@@ -191,12 +201,12 @@ export default function Header() {
               className="btn-ghost"
               style={{ padding: "0.35rem 0.75rem", fontSize: "0.78rem", borderRadius: "var(--radius-sm)", cursor: "pointer" }}
             >
-              Sign Out
+              {t("nav.signOut")}
             </button>
           </div>
         ) : (
           <Link href="/login" className="nav-link-item btn-nav-login">
-            🔐 Sign In
+            🔐 {t("nav.signIn")}
           </Link>
         )}
       </nav>

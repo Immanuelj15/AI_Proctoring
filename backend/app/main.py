@@ -6,6 +6,7 @@ from app.routers import questions as questions_router
 from app.routers import exams as exams_router
 from app.routers import proctor as proctor_router
 from app.routers import sessions as sessions_router
+from app.routers import notifications as notifications_router
 from app.database.database import engine
 from sqlalchemy import text
 from app.models import Base
@@ -87,6 +88,7 @@ app.include_router(questions_router.router)
 app.include_router(exams_router.router)
 app.include_router(sessions_router.router)
 app.include_router(proctor_router.router)
+app.include_router(notifications_router.router)
 
 
 @app.get("/")

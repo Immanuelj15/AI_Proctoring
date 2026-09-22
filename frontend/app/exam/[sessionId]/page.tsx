@@ -7,6 +7,7 @@ import IdentityVerificationModal from "@/components/exam/IdentityVerificationMod
 import { useProctoring } from "@/hooks/useProctoring";
 import { API_BASE_URL, resumeExamSession, periodicFaceCheck } from "@/lib/api";
 import { MotionPage, LivePulse, Button, AnimatedModal } from "@/components/motion";
+import { useTranslation } from "@/lib/i18n";
 
 export interface Question {
   id: string;
@@ -22,6 +23,7 @@ export interface Question {
 export default function SecureExamRoomPage() {
   const router = useRouter();
   const routeParams = useParams();
+  const { t } = useTranslation();
   const sessionId = Array.isArray(routeParams?.sessionId)
     ? routeParams.sessionId[0]
     : (routeParams?.sessionId as string) || "1";
@@ -30,6 +32,7 @@ export default function SecureExamRoomPage() {
   const [flaggedQuestions, setFlaggedQuestions] = useState<Record<string, boolean>>({});
   const [secondsRemaining, setSecondsRemaining] = useState<number>(45 * 60);
   const [warningModalMessage, setWarningModalMessage] = useState<string | null>(null);
+  const [showConfirmSubmit, setShowConfirmSubmit] = useState<boolean>(false);
   const [isDisqualified, setIsDisqualified] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [examTitle, setExamTitle] = useState<string>("Database Management Systems (DBMS) Comprehensive Assessment");
@@ -492,13 +495,13 @@ export default function SecureExamRoomPage() {
             <div style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{candidateInfo.email}</div>
           </div>
           <Button
-            onClick={handleSubmitExam}
+            onClick={() => setShowConfirmSubmit(true)}
             disabled={submitting}
             isLoading={submitting}
             variant="primary"
             style={{ padding: "0.55rem 1.25rem", fontSize: "0.85rem" }}
           >
-            Submit Exam Paper
+            {submitting ? t("exam.finalizing") : t("exam.reviewAndSubmit")}
           </Button>
         </div>
       </div>
@@ -537,23 +540,23 @@ export default function SecureExamRoomPage() {
               const isAnswered = answers[q.id] !== undefined && answers[q.id] !== "";
               const isFlagged = flaggedQuestions[q.id];
 
-              let btnClass = "palette-btn-unvisited";
+              let statusClass = "palette-btn-unanswered";
               if (isCurrent) {
-                btnClass = "palette-btn-current";
+                statusClass = "palette-btn-active";
               } else if (isFlagged) {
-                btnClass = "palette-btn-flagged";
+                statusClass = "palette-btn-flagged";
               } else if (isAnswered) {
-                btnClass = "palette-btn-answered";
+                statusClass = "palette-btn-answered";
               }
 
               return (
                 <button
                   key={q.id}
                   onClick={() => setCurrentQuestionIndex(idx)}
-                  className={`palette-btn ${btnClass}`}
+                  className={`palette-number-btn ${statusClass}`}
+                  aria-label={`Jump to question ${idx + 1}`}
                 >
                   {idx + 1}
-                  {isFlagged && <span style={{ fontSize: "0.6rem", position: "absolute", top: "2px", right: "4px" }}>🚩</span>}
                 </button>
               );
             })}
@@ -583,7 +586,9 @@ export default function SecureExamRoomPage() {
           {/* Workspace Header */}
           <div className="exam-workspace-header">
             <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-              <span className="telemetry-pill pill-ai font-mono">Question {currentQuestionIndex + 1} of {questions.length}</span>
+              <span className="telemetry-pill pill-ai font-mono">
+                {t("exam.questionCounter", { current: currentQuestionIndex + 1, total: questions.length })}
+              </span>
               <span className="telemetry-pill pill-neutral">{currentQ.type}</span>
               <span style={{ fontSize: "0.8rem", color: "var(--accent-emerald)", fontWeight: 700 }}>
                 +{currentQ.marks} Marks
@@ -732,11 +737,11 @@ export default function SecureExamRoomPage() {
               className="btn-ghost"
               style={{ opacity: currentQuestionIndex === 0 ? 0.4 : 1 }}
             >
-              ← Previous
+              {t("exam.previousQuestion")}
             </button>
 
             <div style={{ fontSize: "0.82rem", color: "var(--text-dim)" }}>
-              {answers[currentQ.id] ? "✓ Answer Saved" : "○ Unanswered"}
+              {answers[currentQ.id] ? t("exam.answerSaved") : t("exam.unanswered")}
             </div>
 
             {currentQuestionIndex < questions.length - 1 ? (
@@ -744,15 +749,15 @@ export default function SecureExamRoomPage() {
                 onClick={() => setCurrentQuestionIndex((prev) => Math.min(questions.length - 1, prev + 1))}
                 className="btn-primary"
               >
-                Next Question →
+                {t("exam.nextQuestion")}
               </button>
             ) : (
               <button
-                onClick={handleSubmitExam}
+                onClick={() => setShowConfirmSubmit(true)}
                 disabled={submitting}
                 className="btn-emerald"
               >
-                {submitting ? "Finalizing..." : "Review & Submit Exam"}
+                {submitting ? t("exam.finalizing") : t("exam.reviewAndSubmit")}
               </button>
             )}
           </div>
@@ -766,11 +771,11 @@ export default function SecureExamRoomPage() {
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
               <span className="pulse-dot pulse-dot-green" />
               <span style={{ fontSize: "0.8rem", fontWeight: 800, color: "#fff", textTransform: "uppercase" }}>
-                AI Vision Proctor
+                {t("exam.visionProctor")}
               </span>
             </div>
             <span className="telemetry-pill pill-active font-mono" style={{ fontSize: "0.68rem" }}>
-              {wsConnected ? "STREAM ACTIVE" : "CONNECTING..."}
+              {wsConnected ? t("exam.streamActive") : t("exam.connecting")}
             </span>
           </div>
 
@@ -788,7 +793,7 @@ export default function SecureExamRoomPage() {
 
               <div style={{ display: "flex", justifyContent: "space-between" }}>
                 <span style={{ background: "rgba(0,0,0,0.7)", padding: "2px 6px", borderRadius: "4px", fontSize: "0.65rem", color: "#38bdf8", fontFamily: "var(--font-mono)" }}>
-                  FACE TRACK: ACTIVE
+                  {t("exam.faceTrack")}
                 </span>
                 <span style={{ background: "rgba(0,0,0,0.7)", padding: "2px 6px", borderRadius: "4px", fontSize: "0.65rem", color: "#34d399", fontFamily: "var(--font-mono)" }}>
                   30 FPS
@@ -812,33 +817,70 @@ export default function SecureExamRoomPage() {
           {/* Telemetry Metrics Breakdown */}
           <div style={{ display: "flex", flexDirection: "column", gap: "0.65rem" }}>
             <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.65rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Tab Switch Policy:</span>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("exam.tabPolicy")}:</span>
               <span className="strike-badge-box font-mono" style={{ padding: "0.2rem 0.5rem" }}>
                 0 / 3 Strikes
               </span>
             </div>
 
             <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.65rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Suspicion Index:</span>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("exam.suspicionIndex")}:</span>
               <span style={{ fontSize: "0.82rem", fontWeight: 800, color: "#34d399" }}>
-                0.0 / 100 (Safe)
+                0.0 / 100 ({t("exam.safe")})
               </span>
             </div>
 
             <div style={{ background: "rgba(255,255,255,0.03)", padding: "0.65rem", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>Zero-Trust Lockdown:</span>
+              <span style={{ fontSize: "0.75rem", color: "var(--text-muted)" }}>{t("exam.zeroTrustLockdown")}:</span>
               <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#38bdf8" }}>
-                ENFORCED
+                {t("exam.enforced")}
               </span>
             </div>
           </div>
 
           {/* Compliance Notice */}
           <div style={{ marginTop: "auto", background: "rgba(6, 182, 212, 0.05)", padding: "0.75rem", borderRadius: "var(--radius-sm)", border: "1px solid rgba(6, 182, 212, 0.2)", fontSize: "0.72rem", color: "var(--text-muted)", lineHeight: 1.5 }}>
-            🛡️ Audio, video, and browser focus are continuously audited. Examiner intervention can occur live at any moment.
+            {t("exam.complianceNotice")}
           </div>
         </aside>
       </div>
+
+      {/* Submit Confirmation Modal */}
+      <AnimatedModal
+        isOpen={showConfirmSubmit}
+        onClose={() => setShowConfirmSubmit(false)}
+        maxWidth="480px"
+      >
+        <div style={{ padding: "1.75rem", textAlign: "center" }}>
+          <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>📝</div>
+          <h3 style={{ fontSize: "1.25rem", fontWeight: 800, color: "#fff", marginBottom: "0.5rem" }}>
+            {t("exam.confirmSubmitTitle")}
+          </h3>
+          <p style={{ color: "var(--text-muted)", fontSize: "0.9rem", lineHeight: 1.5, marginBottom: "1.5rem" }}>
+            {t("exam.confirmSubmitMessage")}
+          </p>
+          <div style={{ display: "flex", gap: "0.75rem", justifyContent: "center" }}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowConfirmSubmit(false)}
+            >
+              {t("exam.confirmSubmitCancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              isLoading={submitting}
+              onClick={() => {
+                setShowConfirmSubmit(false);
+                handleSubmitExam();
+              }}
+            >
+              {t("exam.confirmSubmitYes")}
+            </Button>
+          </div>
+        </div>
+      </AnimatedModal>
 
       {/* Phase 1 Pre-Exam Identity Verification & Room Scan Modal */}
       {showIdentityModal && (

@@ -260,6 +260,110 @@ tests/test_weeks_1_to_4.py .                                             [100%]
 
 ---
 
+## 📱 Progressive Web App (PWA) & Web Push Engine
+
+CyberProctor is a certified Progressive Web App installable across Windows, macOS, Linux, Android, and iOS.
+
+### 1. Installation & Web App Manifest
+- **Web App Manifest (`/manifest.json`)**: Configured with `display: standalone`, `theme_color: #12172B`, and `background_color: #F5F6F8`.
+- **Branded Design-System Icons**: Includes `192x192`, `512x512`, `512x512 maskable`, and `72x72 badge` icons matching the Navy ink and Signal blue color tokens.
+- **Custom Install Prompt (`InstallPrompt.tsx`)**: Intercepts the browser's `beforeinstallprompt` event, suppresses default chrome banners, and displays an accessible prompt offering one-click desktop/home screen installation. Automatically suppresses if running in standalone mode or dismissed within 24 hours.
+
+### 2. Tri-Tier Service Worker Caching Architecture (`sw.js`)
+To balance offline reliability with rigorous exam security, the service worker enforces 3 deliberate caching strategies:
+1. **Static Build Assets (Cache-First)**: `/_next/static/`, CSS, JS, fonts, icons, and SVG assets are content-hashed and cached permanently in `ai-proctor-static-v1`, updating in the background.
+2. **Page Navigations (Network-First)**: HTML page navigations attempt network fetch first, caching runtime pages in `ai-proctor-pages-v1`. On offline disconnect, serves cached copy; if uncached, serves the dedicated `/offline.html` fallback.
+3. **API Endpoints & Telemetry (Strict Network-Only)**: Requests to `/api/`, `http://127.0.0.1:8000`, and WebSocket connections are **strictly network-only and never cached**. Exam timers, session states, and answers remain 100% server-authoritative.
+- **Production Gating**: The service worker registers only in production builds (`NODE_ENV === 'production'`) to prevent caching interference with development hot reloading.
+
+### 3. End-to-End VAPID Push Notifications
+CyberProctor includes full push notification support for upcoming exam reminders and proctor alerts:
+- **Frontend Opt-In (`PushNotificationToggle.tsx`)**: Negotiates browser permissions, subscribes with VAPID `applicationServerKey`, and syncs subscription endpoints to backend `POST /api/v1/notifications/subscribe`.
+- **Backend Dispatch Service (`push_service.py`)**: Utilizes `pywebpush` and VAPID credentials to dispatch encrypted Web Push payloads. Automatically prunes expired endpoints (`HTTP 410 / 404`).
+- **Scheduled Reminder Job (`exam_scheduler.py`)**: Periodically scans active examinations and broadcasts start reminders to enrolled candidates.
+- **Service Worker Push & Click Handlers**: Renders rich notifications with badge and icon, focusing or opening the candidate room upon tap.
+
+#### How to Generate & Configure VAPID Keys
+
+To generate new VAPID keys, run using Node.js:
+```bash
+npx web-push generate-vapid-keys
+```
+Or using Python:
+```bash
+python -c "from py_vapid import Vapid; v = Vapid(); v.generate_keys(); import base64; from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat; print('PUBLIC_KEY=' + base64.urlsafe_b64encode(v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)).decode().rstrip('=')); print('PRIVATE_KEY=' + base64.urlsafe_b64encode(v.private_key.private_numbers().private_value.to_bytes(32, 'big')).decode().rstrip('='))"
+```
+
+Configure your environment variables:
+- **Backend (`backend/.env`)**:
+  ```env
+  VAPID_PUBLIC_KEY=BIohzaztSefqt-2j2dRioX1FUz9JxV8r-lRTE026iNGeooeAR_5I93Jexg9irrBArOyPxyV7I9smh1YonkIgKug
+  VAPID_PRIVATE_KEY=RnPeaGBiB693csmLC1TvjZ3ACGXgVUfcYKTHp4vdIYQ
+  VAPID_CLAIMS_SUB=mailto:admin@aiproctor.internal
+  ```
+- **Frontend (`frontend/.env.local`)**:
+  ```env
+  NEXT_PUBLIC_VAPID_PUBLIC_KEY=BIohzaztSefqt-2j2dRioX1FUz9JxV8r-lRTE026iNGeooeAR_5I93Jexg9irrBArOyPxyV7I9smh1YonkIgKug
+  ```
+
+---
+
+## 🌐 Multilingual UI (6 Languages)
+
+CyberProctor supports 6 Indian and international languages natively without complex URL-based routing:
+1. **English** (`en`)
+2. **Hindi** (`hi` - हिन्दी)
+3. **Telugu** (`te` - తెలుగు)
+4. **Tamil** (`ta` - தமிழ்)
+5. **Malayalam** (`ml` - മലയാളം)
+6. **Kannada** (`kn` - ಕನ್ನಡ)
+
+### 1. Architecture & Translation Hook
+- **Client-Side Locale Context (`LocaleContext.tsx`)**:
+  - Auto-detects preferred browser language on first visit (`navigator.languages`).
+  - Persists language preference across sessions via `localStorage` and `cookie`.
+  - Sets `document.documentElement.lang` dynamically for accessibility and screen readers.
+- **Translation Hook (`useTranslation()`)**:
+  - Exposes `t(key, variables?)` with `{{variable}}` token interpolation (e.g. `Question {{current}} of {{total}}`).
+  - Automatic fallback to English if any key is missing in another locale (never returns blank or crashes).
+- **Native-Script Language Switcher (`LanguageSwitcher.tsx`)**:
+  - Displays each language in its native script (e.g., తెలుగు, தமிழ், हिन्दी).
+  - Placed persistently in the Global Header and on the Login screen.
+
+### 2. Dictionary Parity & Automated Audit
+All 6 dictionaries (`locales/en.json`, `locales/hi.json`, `locales/te.json`, `locales/ta.json`, `locales/ml.json`, `locales/kn.json`) share an identical key schema. To verify 100% parity and prevent translation drift:
+```bash
+python frontend/scripts/audit-locales.py
+```
+Output:
+```
+============================================================
+AUDITING LOCALES AGAINST CANONICAL: en.json
+Total Canonical Keys: 96
+============================================================
+Locale: hi.json (96 keys) -> [PASS] Zero missing keys
+Locale: te.json (96 keys) -> [PASS] Zero missing keys
+Locale: ta.json (96 keys) -> [PASS] Zero missing keys
+Locale: ml.json (96 keys) -> [PASS] Zero missing keys
+Locale: kn.json (96 keys) -> [PASS] Zero missing keys
+============================================================
+[SUCCESS] 100% LOCALE PARITY CONFIRMED across all 6 languages.
+============================================================
+```
+
+### 3. Translation Coverage Boundaries
+- **Fully Translated High-Traffic Surfaces**:
+  - **Login Flow**: Portal selection cards, role selectors (Student, Examiner, Admin), quick-fill buttons, form inputs, error banners, and registration links.
+  - **Global Navigation**: Header brand titles, live status indicator, instant demo action buttons, navigation tabs, sign in/sign out.
+  - **Candidate Dashboard**: Welcome banners, metric statistics (Question Bank, Active Exams, Candidates, Mean Integrity), tab labels, candidate exam listings, and launch exam buttons.
+  - **Active Exam Room**: Dynamic question counters (`Question X of Y`), previous/next buttons, answer saved status, submit exam actions, submit confirmation modal, and live biometric HUD status badges.
+  - **PWA & System**: Offline fallback screens, app install prompts, and push reminder opt-ins.
+- **Intentional Scope Boundaries (Untranslated)**:
+  - Raw exam questions and MCQ choices stored inside the database remain in the language authored by the examiner (e.g., Computer Science technical terms in English).
+  - Examiner subjective grading remarks and free-text notes written during live evaluation.
+
+---
+
 ## 🔒 Security & Compliance Standards
 - **Zero-Trust Architecture**: Every endpoint enforces JWT bearer validation and RBAC guards (`student`, `examiner`, `admin`).
 - **Data Leak Prevention**: Student sessions receive sanitized question objects without model answers or rubric guidance.

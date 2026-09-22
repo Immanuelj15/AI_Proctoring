@@ -6,6 +6,7 @@ from app.models.session import ExamSession, SessionStatus
 from app.models.answer import Answer
 from app.models.result import Result, EvaluationType
 from app.models.proctor_event import ProctorEvent, ProctorEventType
+from app.models.push_subscription import PushSubscription
 
 __all__ = [
     "Base",
@@ -23,4 +24,5 @@ __all__ = [
     "EvaluationType",
     "ProctorEvent",
     "ProctorEventType",
+    "PushSubscription",
 ]

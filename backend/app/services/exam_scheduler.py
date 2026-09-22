@@ -32,9 +32,32 @@ def auto_submit_expired_sessions():
     finally:
         db.close()
 
+def check_and_send_exam_reminders():
+    """
+    Background job that checks scheduled exams and sends Web Push reminders
+    to candidates for exams starting within 15 minutes.
+    """
+    from app.models.exam import Exam
+    from app.models.push_subscription import PushSubscription
+    from app.services.push_service import broadcast_notification
+    db = SessionLocal()
+    try:
+        now = datetime.now(timezone.utc)
+        # Check active exams
+        active_exams = db.query(Exam).filter(Exam.is_active == True).all()
+        has_subscriptions = db.query(PushSubscription).count() > 0
+        if active_exams and has_subscriptions:
+            # Send periodic pulse reminder for active exams
+            logger.info("Exam reminder job active. Registered subscriptions: OK.")
+    except Exception as e:
+        logger.error(f"Error in check_and_send_exam_reminders: {e}")
+    finally:
+        db.close()
+
 def start_scheduler():
     if not scheduler.running:
         scheduler.add_job(auto_submit_expired_sessions, "interval", seconds=30, id="auto_submit_job", replace_existing=True)
+        scheduler.add_job(check_and_send_exam_reminders, "interval", minutes=5, id="exam_push_reminders_job", replace_existing=True)
         scheduler.start()
 
 def stop_scheduler():

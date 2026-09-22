@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { loginUser } from "@/lib/api";
 import { setToken } from "@/lib/auth";
-
 import { SegmentedTabs, Button } from "@/components/motion";
+import { useTranslation } from "@/lib/i18n";
 
 export default function LoginForm() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<"student" | "examiner" | "admin">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -17,9 +18,9 @@ export default function LoginForm() {
   const [error, setError] = useState("");
 
   const roleTabs = [
-    { id: "student" as const, label: "Student", icon: "🎓" },
-    { id: "examiner" as const, label: "Examiner", icon: "📝" },
-    { id: "admin" as const, label: "Admin", icon: "🔑" },
+    { id: "student" as const, label: t("auth.roleStudent"), icon: "🎓" },
+    { id: "examiner" as const, label: t("auth.roleExaminer"), icon: "📝" },
+    { id: "admin" as const, label: t("auth.roleAdmin"), icon: "🔑" },
   ];
 
   const handleRoleChange = (role: "student" | "examiner" | "admin") => {
@@ -47,7 +48,7 @@ export default function LoginForm() {
     setError("");
 
     if (!email || !password) {
-      setError("Please fill in all fields.");
+      setError(t("auth.allFieldsRequired"));
       return;
     }
 
@@ -66,8 +67,8 @@ export default function LoginForm() {
   return (
     <div className="auth-card">
       <div className="card-header">
-        <h2 className="card-title">Portal Sign In</h2>
-        <p className="card-description">Select your role to access the AI Examination Platform.</p>
+        <h2 className="card-title">{t("auth.portalSignIn")}</h2>
+        <p className="card-description">{t("auth.portalSignInDesc")}</p>
       </div>
 
       {/* Role Selection Tabs with Shared Layout Sliding Pill */}
@@ -82,11 +83,19 @@ export default function LoginForm() {
 
       {/* Quick Fill Bar for Instant Testing */}
       <div className="quick-fill-bar">
-        <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b" }}>⚡ Quick Fill:</span>
+        <span style={{ fontSize: "0.78rem", fontWeight: 700, color: "#64748b" }}>
+          ⚡ {t("auth.quickFill")}
+        </span>
         <div style={{ display: "flex", gap: "0.4rem" }}>
-          <button type="button" className="quick-btn" onClick={() => handleQuickFill("student")}>Student</button>
-          <button type="button" className="quick-btn" onClick={() => handleQuickFill("examiner")}>Examiner</button>
-          <button type="button" className="quick-btn" onClick={() => handleQuickFill("admin")}>Admin</button>
+          <button type="button" className="quick-btn" onClick={() => handleQuickFill("student")}>
+            {t("auth.roleStudent")}
+          </button>
+          <button type="button" className="quick-btn" onClick={() => handleQuickFill("examiner")}>
+            {t("auth.roleExaminer")}
+          </button>
+          <button type="button" className="quick-btn" onClick={() => handleQuickFill("admin")}>
+            {t("auth.roleAdmin")}
+          </button>
         </div>
       </div>
 
@@ -99,7 +108,7 @@ export default function LoginForm() {
       <form onSubmit={handleSubmit}>
         <div className="form-group">
           <label className="form-label" htmlFor="email">
-            {activeTab.toUpperCase()} Email Address
+            {t("auth.email")}
           </label>
           <input
             id="email"
@@ -114,7 +123,9 @@ export default function LoginForm() {
         </div>
 
         <div className="form-group">
-          <label className="form-label" htmlFor="password">Password</label>
+          <label className="form-label" htmlFor="password">
+            {t("auth.password")}
+          </label>
           <input
             id="password"
             type="password"
@@ -133,15 +144,15 @@ export default function LoginForm() {
           isLoading={loading}
           style={{ width: "100%", padding: "0.75rem" }}
         >
-          {`Sign In as ${activeTab.toUpperCase()}`}
+          {loading ? t("auth.signingIn") : t("auth.signInButton")}
         </Button>
       </form>
 
       <div className="card-footer">
         <p>
-          Don&apos;t have an account?{" "}
+          {t("auth.dontHaveAccount")}{" "}
           <Link href="/register" className="auth-link">
-            Create Account
+            {t("auth.registerLink")}
           </Link>
         </p>
       </div>
