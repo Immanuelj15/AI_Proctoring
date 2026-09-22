@@ -43,11 +43,11 @@ def check_and_send_exam_reminders():
     db = SessionLocal()
     try:
         now = datetime.now(timezone.utc)
-        # Check active exams
-        active_exams = db.query(Exam).filter(Exam.is_active == True).all()
+        # Check configured exams
+        exams = db.query(Exam).all()
         has_subscriptions = db.query(PushSubscription).count() > 0
-        if active_exams and has_subscriptions:
-            # Send periodic pulse reminder for active exams
+        if exams and has_subscriptions:
+            # Periodic pulse reminder for active exams
             logger.info("Exam reminder job active. Registered subscriptions: OK.")
     except Exception as e:
         logger.error(f"Error in check_and_send_exam_reminders: {e}")
